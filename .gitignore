@@ -1,0 +1,6 @@
+# Local environment files may contain credentials. Commit templates only.
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
