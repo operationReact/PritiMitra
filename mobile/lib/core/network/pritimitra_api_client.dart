@@ -25,12 +25,19 @@ class PritiMitraApiClient {
     return _requestJson('GET', path);
   }
 
-  Future<ApiResult<Map<String, dynamic>>> putJson(String path, Map<String, dynamic> body) {
+  Future<ApiResult<Map<String, dynamic>>> putJson(
+    String path,
+    Map<String, dynamic> body,
+  ) {
     return _requestJson('PUT', path, body: body);
   }
 
   Future<ApiResult<Map<String, dynamic>>> postJson(String path) {
     return _requestJson('POST', path);
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> deleteJson(String path) {
+    return _requestJson('DELETE', path);
   }
 
   Future<ApiResult<Map<String, dynamic>>> _requestJson(
@@ -109,7 +116,10 @@ class PritiMitraApiClient {
       return ApiForbidden(code: _errorCode(response.body));
     }
     if (status < 200 || status > 299) {
-      return ApiUnavailable(statusCode: status);
+      return ApiUnavailable(
+        statusCode: status,
+        code: _errorCode(response.body),
+      );
     }
     try {
       final decoded = jsonDecode(response.body);
