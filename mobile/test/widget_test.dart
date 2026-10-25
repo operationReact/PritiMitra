@@ -32,16 +32,13 @@ void main() {
     expect(tester.getSize(find.byType(Image).at(1)), const Size(97, 28));
   });
 
-  testWidgets('primary CTA explains auth is not wired yet', (tester) async {
+  testWidgets('primary CTA opens the sign-up screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const ProviderScope(child: PritiMitraApp()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Get started — it’s free'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Account setup is the next implementation phase.'),
-      findsOneWidget,
-    );
+    expect(find.text('Create your account'), findsOneWidget);
   });
 }

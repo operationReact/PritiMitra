@@ -1,0 +1,8 @@
+# Local state and provider cache must never be committed.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example

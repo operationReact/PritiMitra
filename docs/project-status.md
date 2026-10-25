@@ -26,3 +26,39 @@ Status: implementation in progress on `feature/phase-2-rich-design-system`.
 
 ### Next task
 Run branch CI to completion, fix build/test issues, then inspect rendered screenshots at mobile, tablet, and desktop breakpoints against Figma and tune geometry before marking Phase 2 complete.
+
+## Phase 3 — Authentication and onboarding (AWS-native)
+Status: in progress on `feature/phase-3-auth-onboarding`. Nothing is committed or pushed yet. Not production-ready.
+
+### Implemented
+- Backend (Spring Boot): Cognito JWT resource server; account states `PENDING_EMAIL_VERIFICATION`, `ONBOARDING_INCOMPLETE`, `ACTIVE`, `INELIGIBLE`, `SUSPENDED`; enum interested-in set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`, mutually exclusive); append-only consents with configurable draft legal versions; ineligible-account retention purge (scheduled, deletes the Cognito identity first).
+- Web (Next.js): server-side Cognito auth routes; `HttpOnly` session cookies scoped to `/api`; `Secure` in production; backend proxy with allow-listed paths. No tokens in `localStorage`/`sessionStorage`.
+- Mobile (Flutter): `amplify_auth_cognito` integration, route guard, and an API client. Amplify keeps tokens in native secure storage (`amplify_secure_storage` is resolved in `pubspec.lock`).
+- Infrastructure (`infra/terraform/`): Cognito user pool and public app client (refresh rotation enabled, 60-minute access tokens, 30-day refresh), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
+
+### Verification status (actual runs)
+- Backend: `mvnw.cmd -B verify` passed with 23 tests (AuthSchemaMigrationTests 7, BackendApplicationTests 1, IneligibleAccountPurgeTests 2, OnboardingApiTests 13). Testcontainers PostgreSQL 17.
+- Web: `npm test` 42 tests passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` exit 0. No live Cognito test has run.
+- Mobile: `flutter analyze` no issues; `flutter test` 44 tests passed; `flutter build apk --debug` succeeded. iOS was not built. No live Cognito test has run.
+- Terraform 1.16.6: `terraform fmt -check -recursive` exit 0; `terraform init -backend=false` exit 0; `terraform validate` valid. Nothing was planned or applied.
+
+### Not done or outstanding
+- Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
+- SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
+- Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
+- ECS Fargate, ALB, RDS, and Secrets Manager/SSM runtime configuration are not in Terraform yet. These are a follow-up slice.
+- Live Cognito sign-up/verification/refresh-rotation tests need a development user pool.
+- Cost considerations before provisioning: ECS Fargate, RDS, ALB, NAT gateway, SES, and Cognito pricing by MAU.
+
+### Next task
+Get explicit authorization for the DNS records below, then provision a development Cognito pool and SES identity to run live integration tests. Add ECS, ALB, and RDS Terraform after cost approval.
+
+### Proposed DNS records (awaiting authorization; not created)
+| Purpose | Type | Name | Value |
+|---|---|---|---|
+| SES domain verification | TXT | `_amazonses.mail.pritimitra.com` | the `verification_token` output |
+| DKIM (3 records) | CNAME | `<token>._domainkey.mail.pritimitra.com` | `<token>.dkim.amazonses.com` |
+| Custom MAIL FROM | MX | `bounce.mail.pritimitra.com` | `10 feedback-smtp.ap-south-1.amazonses.com` |
+| Custom MAIL FROM SPF | TXT | `bounce.mail.pritimitra.com` | `v=spf1 include:amazonses.com -all` |
+
+Set `manage_dns_records = true` and `route53_zone_id` only after authorization. Run `terraform output ses_dns_records_required` to get the exact token values.

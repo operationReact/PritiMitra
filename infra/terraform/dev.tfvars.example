@@ -1,0 +1,17 @@
+# Copy to dev.tfvars (git-ignored) and fill in values. Contains no secrets.
+aws_region          = "ap-south-1"
+environment         = "dev"
+root_domain         = "pritimitra.com"
+mail_subdomain      = "mail.pritimitra.com"
+mail_from_subdomain = "bounce.mail.pritimitra.com"
+mail_from_address   = "no-reply@mail.pritimitra.com"
+
+# Existing Route 53 hosted zone for pritimitra.com. Supplied by you; never created here.
+route53_zone_id    = ""
+manage_dns_records = false
+
+cognito_callback_urls       = ["http://localhost:3000/api/auth/callback"]
+cognito_logout_urls         = ["http://localhost:3000/"]
+cognito_deletion_protection = "INACTIVE"
+
+github_repository = "operationReact/PritiMitra"
