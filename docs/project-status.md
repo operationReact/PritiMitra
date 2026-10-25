@@ -133,11 +133,19 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Not run in this checkpoint: browser or screenshot checks of the new web pages. Visual parity with Figma is not verified.
 
 ### Not done (outstanding for Phase 4)
-- Flutter photo upload and management UI. Deferred, because `image_picker` is not a dependency and the client cannot decode the photo list.
-- Web photo management. Not started.
+- Flutter photo upload and management UI. Not implemented. Scope decision: deferred to a follow-up checkpoint, because the backend photo API is complete and the client work is separate.
+
+- Web photo management. Not implemented, for the same reason.
 - Web discovery paging beyond the first page. The proxy does not forward query strings.
-- Terraform photo bucket: not declared yet. Nothing has been applied.
-- Upgrade-path test for V4 and V5 on existing data (the `public_id` backfill) has not been written. Only fresh-database migration is covered.
+
+### Terraform and upgrade checks (Checkpoint E)
+- `infra/terraform/photos.tf` declares a private profile photo bucket: public access fully blocked, SSE-S3 (AES256), bucket-owner-enforced ownership, versioning disabled so deleted photos are not retained, TLS-only bucket policy, and abort of incomplete multipart uploads. Name is `pritimitra-profile-photos-<env>-<account_id>`. Output `profile_photo_bucket_name`.
+- The API still needs an IAM role with `s3:PutObject`, `GetObject` and `DeleteObject` on this bucket. That role is not declared yet, and nothing has been applied.
+- `infra/terraform/tests/profile_photos.tftest.hcl` (plan-only, mocked provider) checks public access block, encryption and ownership.
+- Verified: `terraform fmt -check -recursive` exit 0, `terraform init -backend=false` exit 0, `terraform validate` exit 0, `terraform test` 4 passed (3 existing Cognito cases plus 1 new).
+- `backend/src/test/.../Phase4UpgradeMigrationTests.java` migrates an isolated schema to V3, inserts pre-Phase-4 users and profiles, migrates to latest, and checks that profiles default to `discovery_visible = false`, that `public_id` is set and distinct per row, and that `profile_photo` exists. The schema is dropped afterwards.
+- Verified: `backend\mvnw.cmd -B verify` BUILD SUCCESS, 50 tests, 0 failures.
+- Not re-run in this checkpoint: Flutter and web, since neither changed after Checkpoint D.
 - Distance and interest matching are not enforced in discovery. Candidate gender identity is free text, and there is no location data.
 - Live Cognito and S3 behaviour is untested in this environment. Hot reload of Flutter was not run because no app is connected.
 
