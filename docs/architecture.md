@@ -64,11 +64,11 @@ Account states are explicit and must not be inferred only from whether Cognito a
 - **Mobile authentication and product calls:** Flutter uses Amplify Cognito for authentication and sends the access token when calling protected backend APIs.
 - **Backend authorization:** Spring Security validates access tokens, then application services enforce account state, ownership, consent, and endpoint-specific access rules. Client-side checks are for UX only and are not security controls.
 - **Database:** The backend reads its datasource from `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. Flyway applies migrations at startup.
-- **Phase boundary:** Phase 3 authentication/account-lifecycle foundations exist in the repository, but the end-to-end onboarding UI is not complete. Phase 4 profile, photo, discovery, and like functionality below is a design target and must not be described as implemented until corresponding code and tests are merged.
+- **Phase boundary:** Phase 3 authentication/account-lifecycle foundations exist in the repository, but the end-to-end onboarding UI is not complete. Phase 4 is in progress on draft PR #5; the backend profile, discovery, likes, and photo APIs are implemented, while the Flutter and web photo UI are not.
 
-## Profiles, photos, privacy, and discovery (Phase 4 design target)
+## Profiles, photos, privacy, and discovery (Phase 4, in progress)
 
-This section records requirements for the planned Phase 4 implementation; it is not a claim that the features already exist.
+This section records the Phase 4 requirements and the current state. Implemented items are listed in `docs/project-status.md`. Photo management UI on Flutter and web is not yet implemented. Gender and interest preferences are not enforced, because gender identity is free text.
 
 ### Profile APIs and privacy
 
@@ -112,4 +112,4 @@ Cover profile field validation and ownership/IDOR boundaries, inactive-account e
 - CI validates the applications; backend CI also validates the local Compose configuration.
 - Terraform formatting, validation, and mocked-provider tests can validate configuration but do not apply infrastructure or validate live AWS behavior.
 - Visual parity is not established by builds or unit tests. Compare rendered implementation screenshots against the approved Figma frames before claiming it.
-- Phase 4 profile/photo/discovery/like endpoints are not yet implemented; do not use the old Phase 1 statement that no product API endpoints exist at all, because it ignores the later authentication/account-lifecycle work.
+- Phase 4 profile, photo, discovery, and like endpoints are implemented on the backend (see `docs/project-status.md`). Do not use the old Phase 1 statement that no product API endpoints exist, because it predates the authentication and account-lifecycle work.

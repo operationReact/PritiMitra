@@ -106,7 +106,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 ### Implemented (backend, Checkpoint B: photos)
 - Migration `V5__profile_photos.sql` (additive): `profile_photo` table with owner FK (cascade delete), server-generated `storage_key` (unique), content-type and size CHECKs, and `review_status` defaulting to `PENDING_REVIEW`.
 - Owner-only photo API at `/api/v1/profile/photos`: `GET` list (metadata only), `POST` multipart upload (201), `GET /{id}/content` (bytes with `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`), `DELETE /{id}` (204).
-- Validation by magic bytes (JPEG, PNG, WebP), not the client Content-Type. Max 5 MB and 6 photos per user. Concurrent uploads are serialised with a transaction advisory lock.
+- Validation by decoding the image (JPEG and PNG only; see the hardening pass below), not the client Content-Type. Max 5 MB and 6 photos per user. Concurrent uploads are serialised with a transaction advisory lock.
 - Storage is a `PhotoStorage` port with an S3 adapter. Keys are `profiles/<userId>/<uuid>` and are never returned. Upload writes the object first and removes it if the insert fails. Delete removes the row, then the object best-effort.
 - Errors: `INVALID_PHOTO` (400), `PHOTO_TOO_LARGE` (413), `PHOTO_LIMIT_REACHED` (409), `PHOTO_NOT_FOUND` (404), `PHOTO_STORAGE_UNAVAILABLE` (503, also when no bucket is configured).
 - Photos are owner-only in Phase 4. They are not shown in discovery. Moderation belongs to Phase 7.
@@ -132,11 +132,28 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - `web`: `npm test` 70/70 passed (9 files, including `proxy-policy.test.ts` with new profile, discovery and like cases, and `profile/models.test.ts`). `npx tsc --noEmit` exit 0. `npm run lint` exit 0. `npm run build` exit 0, with `/discover` and `/profile` built.
 - Not run in this checkpoint: browser or screenshot checks of the new web pages. Visual parity with Figma is not verified.
 
-### Not done (outstanding for Phase 4)
-- Flutter photo upload and management UI. Not implemented. Scope decision: deferred to a follow-up checkpoint, because the backend photo API is complete and the client work is separate.
+### Hardening pass (PR #5 review fixes)
+- Photo validation: JPEG and PNG only. Files are decoded with ImageIO, which rejects truncated or corrupt images. Limits are 5 MB, 8,000 px per side and 40 MP. Accepted images are re-encoded to strip metadata, and the stored content type matches the output. WebP is removed from the accepted set, but applied migration V5 still allows `image/webp` in its CHECK constraint. This mismatch is documented, not fixed, because V5 must not be edited and a V6 migration is not yet approved.
+- Terraform: mocked-provider tests cover the TLS-deny policy and the stale-upload abort lifecycle. The backend runtime IAM role is still not declared. It is a deployment dependency, and nothing was applied.
+- Discovery: inclusive age-window boundary tests and a malformed cursor test were added.
+- Discovery preferences: gender and interest preferences are NOT enforced. Candidate gender identity is free text, so reliable matching is not possible yet. Only the age window and goal filter are enforced.
+- Likes: `GET /api/v1/likes` (paged, privacy-safe) lists the viewer's outgoing likes. Unlike returns 200 `{liked:false}` for both missing and existing likes, so it does not reveal existence. Flutter maps 404 `PROFILE_NOT_FOUND` correctly, and the liked-profiles sheet is server-backed.
+- Web BFF: query forwarding for `/api/v1/discovery` only. Allowlist: `cursor`, `size` (1–50) and `goal` (5 enum values). Unknown, repeated or malformed keys return 400 `invalid_request`, and nothing is forwarded. The discovery page loads more with a cursor and has loading, error and retry states.
 
-- Web photo management. Not implemented, for the same reason.
-- Web discovery paging beyond the first page. The proxy does not forward query strings.
+### Verification (hardening pass, actual runs)
+- `backend\mvnw.cmd -B verify`: exit 0, BUILD SUCCESS, 63 tests, 0 failures, 0 errors, 0 skipped. This includes `PhotoApiTests` 14/14, `PhotoImageProcessorTests` 4/4, `ProfileDiscoveryApiTests` 17/17, `Phase4UpgradeMigrationTests` 1/1 and `OnboardingApiTests` 13/13. Docker was running (engine 29.9.2).
+- Flutter: `dart format --set-exit-if-changed` on the discovery and API files exit 0 (0 changed). `flutter analyze` on the discovery and network paths exit 0 with no issues. `flutter test test/features/profile_discovery_api_test.dart` exit 0, 14/14.
+- Terraform (from `infra/terraform`): `terraform fmt -check -recursive` exit 0. `terraform init -backend=false` exit 0. `terraform validate` exit 0. `terraform test` exit 0, 6 passed, 0 failed.
+- Web (at commit `3c6b82b`): `npm test` 81/81, `tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0.
+- Not run: browser or screenshot checks, and Figma comparison. Visual validation is not claimed.
+
+### Outstanding and deferred (Phase 4)
+- Flutter photo upload and management UI: NOT implemented. `image_picker` is not in `mobile/pubspec.yaml`, and the app never calls the photo endpoints. Adding the picker needs Android and iOS permission setup that has not been verified on a device.
+- Web photo upload and management: NOT implemented. The BFF CSRF gate requires JSON Content-Type on non-GET requests. Multipart support needs a design change that has not been made, and the gate has not been weakened.
+- Discovery preferences (gender identity and interests): NOT enforced, as described above.
+- Viewer-liked state on discovery cards: not provided. Liked profiles are reached through the outgoing-likes list.
+- Live AWS S3 and Cognito behaviour is not tested. Authorisation has not been given for a development bucket or `terraform apply`. The backend runtime IAM role is blocked on that infrastructure decision.
+- Phase 4 is not production-ready. PR #5 stays a draft.
 
 ### Terraform and upgrade checks (Checkpoint E)
 - `infra/terraform/photos.tf` declares a private profile photo bucket: public access fully blocked, SSE-S3 (AES256), bucket-owner-enforced ownership, versioning disabled so deleted photos are not retained, TLS-only bucket policy, and abort of incomplete multipart uploads. Name is `pritimitra-profile-photos-<env>-<account_id>`. Output `profile_photo_bucket_name`.
