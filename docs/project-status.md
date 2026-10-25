@@ -73,7 +73,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 
 ### Not done or outstanding
 - Web onboarding and auth pages (Step 1 web half), Step 2 remaining auth screens, and Step 3 permission/error states are not implemented.
-- Phase 4 (profiles, photos, discovery, likes) has been specified but not started. It depends on the Phase 3 onboarding being complete.
+- Phase 4 (profiles, photos, discovery, likes) is in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Backend, Flutter and web profile and discovery are implemented. See the Phase 4 section for verified results and open items.
 - Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
 - SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
 - Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
@@ -116,10 +116,28 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - `backend\mvnw.cmd verify` (Docker Desktop running): BUILD SUCCESS, 49 tests, 0 failures. `PhotoApiTests` 9/9 (mocked `PhotoStorage`, no AWS calls). `ProfileDiscoveryApiTests` 13/13. `OnboardingApiTests` 13/13.
 - Live S3 behaviour has not been tested. It needs an authorised development bucket.
 
+### Implemented (Flutter, Checkpoint C)
+- Routes `/profile` and `/discover` are reachable only for `ACTIVE` accounts. Home screen links to both.
+- Profile screen shows the own profile, the discoverability toggle, and `PROFILE_INCOMPLETE` handling. Discovery screen lists cards with like and unlike, and pages with a cursor.
+- `ApiUnavailable` carries the backend error `code`, so 409 `PROFILE_INCOMPLETE` reaches the UI.
+- Photo management UI is not implemented in Flutter yet.
+
+### Implemented (Web, Checkpoint D)
+- BFF allowlist extended exactly: `GET /api/v1/profile`, `PUT /api/v1/profile/discoverability`, `GET /api/v1/discovery` (first page only, no query string), and `PUT`/`DELETE /api/v1/likes/{publicId}`. `DELETE` is added to the proxy handler with the same same-origin and JSON-content-type CSRF gate as PUT and POST.
+- Server Component pages `/profile` and `/discover` with client components for the discoverability toggle and the like button. Shared loader `lib/profile/server.ts` maps backend results to signed-out, not-eligible (403 or 409), unavailable and ok states.
+- Response parsers `lib/profile/models.ts` reject malformed payloads and drop unknown fields.
+- Limitations: discovery has no viewer-liked flag, so like buttons start in the "Like" state. Server pages do not refresh an expired access token (`canRefresh: false`, same as `/account`), so they show the sign-in prompt in that case. The client calls refresh through the proxy.
+
+### Verification (actual runs, Checkpoint D)
+- `web`: `npm test` 70/70 passed (9 files, including `proxy-policy.test.ts` with new profile, discovery and like cases, and `profile/models.test.ts`). `npx tsc --noEmit` exit 0. `npm run lint` exit 0. `npm run build` exit 0, with `/discover` and `/profile` built.
+- Not run in this checkpoint: browser or screenshot checks of the new web pages. Visual parity with Figma is not verified.
+
 ### Not done (outstanding for Phase 4)
-- Flutter profile view/edit, privacy toggle, discovery list, like/unlike, and photo UI. Not started.
-- Responsive web profile and discovery pages. Not started.
+- Flutter photo upload and management UI. Deferred, because `image_picker` is not a dependency and the client cannot decode the photo list.
+- Web photo management. Not started.
+- Web discovery paging beyond the first page. The proxy does not forward query strings.
 - Terraform photo bucket: not declared yet. Nothing has been applied.
 - Upgrade-path test for V4 and V5 on existing data (the `public_id` backfill) has not been written. Only fresh-database migration is covered.
 - Distance and interest matching are not enforced in discovery. Candidate gender identity is free text, and there is no location data.
-- Live Cognito and S3 behaviour is untested in this environment.
+- Live Cognito and S3 behaviour is untested in this environment. Hot reload of Flutter was not run because no app is connected.
+

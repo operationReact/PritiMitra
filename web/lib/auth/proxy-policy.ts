@@ -1,4 +1,4 @@
-export type BackendMethod = "GET" | "PUT" | "POST";
+export type BackendMethod = "GET" | "PUT" | "POST" | "DELETE";
 
 type AllowedRoute = { method: BackendMethod; path: string };
 
@@ -10,13 +10,16 @@ const ALLOWED_ROUTES: readonly AllowedRoute[] = [
   { method: "PUT", path: "/api/v1/onboarding/consents" },
   { method: "PUT", path: "/api/v1/onboarding/profile" },
   { method: "POST", path: "/api/v1/onboarding/complete" },
+  { method: "GET", path: "/api/v1/profile" },
+  { method: "PUT", path: "/api/v1/profile/discoverability" },
+  { method: "GET", path: "/api/v1/discovery" },
 ];
 
 const SEGMENT_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 const MAX_SEGMENTS = 8;
 
 export function isBackendMethod(method: string): method is BackendMethod {
-  return method === "GET" || method === "PUT" || method === "POST";
+  return method === "GET" || method === "PUT" || method === "POST" || method === "DELETE";
 }
 
 /**
@@ -36,5 +39,12 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   }
   const path = `/api/${segments.join("/")}`;
   const allowed = ALLOWED_ROUTES.some((route) => route.method === method && route.path === path);
-  return allowed ? path : null;
+  if (allowed) {
+    return path;
+  }
+  // Like and unlike address one profile by its public id: PUT or DELETE /api/v1/likes/{publicId}.
+  const isLikeTarget =
+    segments.length === 3 && segments[0] === "v1" && segments[1] === "likes" && (method === "PUT" || method === "DELETE");
+  return isLikeTarget ? path : null;
 }
+

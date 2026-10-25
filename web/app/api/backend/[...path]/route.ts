@@ -13,11 +13,13 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
   const method = request.method;
 
   let body: string | undefined;
-  if (method === "PUT" || method === "POST") {
+  if (method !== "GET") {
     const rejected = rejectUnsafeRequest(request);
     if (rejected) {
       return rejected;
     }
+  }
+  if (method === "PUT" || method === "POST") {
     const text = await readBoundedText(request, MAX_PROXY_BODY_BYTES);
     if (text === null) {
       return authErrorResponse(413, "payload_too_large");
@@ -77,5 +79,9 @@ export function PUT(request: Request, context: RouteContext): Promise<NextRespon
 }
 
 export function POST(request: Request, context: RouteContext): Promise<NextResponse> {
+  return proxy(request, context);
+}
+
+export function DELETE(request: Request, context: RouteContext): Promise<NextResponse> {
   return proxy(request, context);
 }
