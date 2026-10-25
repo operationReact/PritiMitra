@@ -66,7 +66,14 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Mobile: `flutter analyze` no issues; `flutter test` 44 tests passed; `flutter build apk --debug` succeeded. iOS was not built. No live Cognito test has run.
 - Terraform 1.16.6: `terraform fmt -check -recursive` exit 0; `terraform init -backend=false` exit 0; `terraform validate` valid. Nothing was planned or applied.
 
+### Onboarding Step 1 (commit 0b99f6a, WIP)
+- Added `GET /api/v1/onboarding/profile` and the Flutter onboarding flow (date of birth, Terms and Privacy consent, goals, profile, review) with loading, failure and retry states.
+- Verified: `mvnw.cmd verify` BUILD SUCCESS, 27 tests, including 13 `OnboardingApiTests` (Docker Desktop was required for the Testcontainers-backed tests). `flutter analyze lib test` no issues. `flutter test test/features test/core` 52 passed.
+- Not done: web onboarding and auth pages and BFF routes, screenshots, and Figma comparison. No visual parity is claimed.
+
 ### Not done or outstanding
+- Web onboarding and auth pages (Step 1 web half), Step 2 remaining auth screens, and Step 3 permission/error states are not implemented.
+- Phase 4 (profiles, photos, discovery, likes) has been specified but not started. It depends on the Phase 3 onboarding being complete.
 - Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
 - SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
 - Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
