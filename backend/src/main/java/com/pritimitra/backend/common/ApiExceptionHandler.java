@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -26,6 +27,14 @@ class ApiExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
 		problem.setProperty("code", "VALIDATION_FAILED");
 		problem.setProperty("fields", fields);
+		return problem;
+	}
+
+	/** Servlet-level multipart overflow; the service also enforces the limit for in-memory uploads. */
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	ProblemDetail handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Upload is too large");
+		problem.setProperty("code", "PHOTO_TOO_LARGE");
 		return problem;
 	}
 

@@ -103,14 +103,23 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Idempotent directional likes at `/api/v1/likes/{publicId}` (`PUT` like, `DELETE` unlike). Self-like returns 400 `CANNOT_LIKE_SELF`. Private and unknown targets return the same 404 `PROFILE_NOT_FOUND`.
 - Discovery cards expose only display name, bio, prompt, identity fields, goals, and interests.
 
-### Verification (actual runs)
-- `backend\mvnw.cmd verify` (Docker Desktop running): exit 0, 40 tests in 6 classes, 0 failures. `ProfileDiscoveryApiTests` 13/13. `OnboardingApiTests` 13/13. Migrations V1–V4 applied on a fresh Testcontainers PostgreSQL.
+### Implemented (backend, Checkpoint B: photos)
+- Migration `V5__profile_photos.sql` (additive): `profile_photo` table with owner FK (cascade delete), server-generated `storage_key` (unique), content-type and size CHECKs, and `review_status` defaulting to `PENDING_REVIEW`.
+- Owner-only photo API at `/api/v1/profile/photos`: `GET` list (metadata only), `POST` multipart upload (201), `GET /{id}/content` (bytes with `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`), `DELETE /{id}` (204).
+- Validation by magic bytes (JPEG, PNG, WebP), not the client Content-Type. Max 5 MB and 6 photos per user. Concurrent uploads are serialised with a transaction advisory lock.
+- Storage is a `PhotoStorage` port with an S3 adapter. Keys are `profiles/<userId>/<uuid>` and are never returned. Upload writes the object first and removes it if the insert fails. Delete removes the row, then the object best-effort.
+- Errors: `INVALID_PHOTO` (400), `PHOTO_TOO_LARGE` (413), `PHOTO_LIMIT_REACHED` (409), `PHOTO_NOT_FOUND` (404), `PHOTO_STORAGE_UNAVAILABLE` (503, also when no bucket is configured).
+- Photos are owner-only in Phase 4. They are not shown in discovery. Moderation belongs to Phase 7.
+- `AWS SDK S3` dependency added to the backend. Config: `PRITIMITRA_PHOTO_BUCKET` (blank by default, so storage fails closed) and `AWS_REGION` (default `ap-south-1`).
+
+### Verification (actual runs, Checkpoint B)
+- `backend\mvnw.cmd verify` (Docker Desktop running): BUILD SUCCESS, 49 tests, 0 failures. `PhotoApiTests` 9/9 (mocked `PhotoStorage`, no AWS calls). `ProfileDiscoveryApiTests` 13/13. `OnboardingApiTests` 13/13.
+- Live S3 behaviour has not been tested. It needs an authorised development bucket.
 
 ### Not done (outstanding for Phase 4)
-- Profile photos: upload, validation, management, private delivery. Storage design not yet decided. No code yet.
-- Flutter profile view/edit, privacy toggle, discovery list, and like/unlike UI. Not started.
+- Flutter profile view/edit, privacy toggle, discovery list, like/unlike, and photo UI. Not started.
 - Responsive web profile and discovery pages. Not started.
-- Terraform changes for Phase 4: none. Nothing has been applied.
-- Upgrade-path test for V4 on existing data (the `public_id` backfill) has not been written. Only fresh-database migration is covered.
+- Terraform photo bucket: not declared yet. Nothing has been applied.
+- Upgrade-path test for V4 and V5 on existing data (the `public_id` backfill) has not been written. Only fresh-database migration is covered.
 - Distance and interest matching are not enforced in discovery. Candidate gender identity is free text, and there is no location data.
 - Live Cognito and S3 behaviour is untested in this environment.
