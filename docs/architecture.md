@@ -28,7 +28,7 @@
 - **Resource server:** Spring Boot validates Cognito access tokens (signature, issuer, expiry, `token_use=access`, `client_id`). The external identity key is the immutable Cognito `sub`, stored uniquely on `app_user`.
 - **Web:** Next.js route handlers hold tokens server-side in `HttpOnly` cookies scoped to `/api`, `Secure` in production. Protected backend calls go through an allow-listed proxy. No tokens in `localStorage` or `sessionStorage`.
 - **Mobile:** `amplify_auth_cognito` stores tokens through Amplify's native secure storage (Keychain/Keystore).
-- **Email:** Cognito sends verification and recovery mail through SES from the verified `mail.pritimitra.com` identity. Mailpit is for application-generated local mail only.
+- **Email:** Cognito sends verification and recovery mail through SES from the verified `mail.pritimitra.com` identity. Local Mailpit is not provisioned yet: the backend sends no application-generated email, and Cognito mail never goes to Mailpit.
 
 Account states (explicit, not overloaded):
 

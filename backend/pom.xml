@@ -145,6 +145,10 @@
 					<systemPropertyVariables>
 						<user.timezone>UTC</user.timezone>
 					</systemPropertyVariables>
+					<!-- Tests use draft legal versions; production must set this to true (the default). -->
+					<environmentVariables>
+						<PRITIMITRA_LEGAL_REQUIRE_APPROVED>false</PRITIMITRA_LEGAL_REQUIRE_APPROVED>
+					</environmentVariables>
 				</configuration>
 			</plugin>
 		</plugins>

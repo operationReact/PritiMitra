@@ -36,8 +36,16 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Mobile (Flutter): `amplify_auth_cognito` integration, route guard, and an API client. Amplify keeps tokens in native secure storage (`amplify_secure_storage` is resolved in `pubspec.lock`).
 - Infrastructure (`infra/terraform/`): Cognito user pool and public app client (refresh rotation enabled, 60-minute access tokens, 30-day refresh), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
 
+### Pre-PR review (this change)
+- Backend `mvnw.cmd -B verify`: 27 tests passed (adds LegalPropertiesTests 4).
+- Web, Flutter, and Terraform results above were re-run on the current tree; only backend code changed afterwards.
+- Fixed: the legal guard defaulted to off, so drafts were accepted in production. It now defaults to `true` (fail closed). Local `.env.example` sets `false`, and Maven surefire sets `false` for tests.
+- Fixed: docs described a running Mailpit. Compose only runs Postgres, and the backend sends no application email, so Mailpit is not provisioned.
+- Secret scan over the diff: no keys, tokens, or real credentials. The only match is a fake test password literal.
+- Known residual: Cognito self sign-up is open at the pool level. Product access still requires server-side age, consent, and activation. Pool-level sign-up restrictions and live verification are not yet tested.
+
 ### Verification status (actual runs)
-- Backend: `mvnw.cmd -B verify` passed with 23 tests (AuthSchemaMigrationTests 7, BackendApplicationTests 1, IneligibleAccountPurgeTests 2, OnboardingApiTests 13). Testcontainers PostgreSQL 17.
+- Backend: `mvnw.cmd -B verify` passed with 27 tests (AuthSchemaMigrationTests 7, BackendApplicationTests 1, IneligibleAccountPurgeTests 2, LegalPropertiesTests 4, OnboardingApiTests 13). Testcontainers PostgreSQL 17.
 - Web: `npm test` 42 tests passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` exit 0. No live Cognito test has run.
 - Mobile: `flutter analyze` no issues; `flutter test` 44 tests passed; `flutter build apk --debug` succeeded. iOS was not built. No live Cognito test has run.
 - Terraform 1.16.6: `terraform fmt -check -recursive` exit 0; `terraform init -backend=false` exit 0; `terraform validate` valid. Nothing was planned or applied.
