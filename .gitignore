@@ -1,0 +1,4 @@
+# Local environment files hold real credentials. Commit only the *.example templates.
+.env
+**/.env
+!**/.env.example
