@@ -2,7 +2,6 @@ package com.pritimitra.backend.photos;
 
 import com.pritimitra.backend.common.ApiException;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,17 +22,17 @@ class PhotoService {
 	static final long MAX_BYTES = 5L * 1024 * 1024;
 
 	private static final Logger LOG = LoggerFactory.getLogger(PhotoService.class);
-	private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
-	private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
 	private static final String PHOTO_COLUMNS = "id, content_type, size_bytes, review_status, created_at";
 
 	private final JdbcClient jdbc;
 	private final PhotoStorage storage;
+	private final PhotoImageProcessor imageProcessor;
 
-	PhotoService(JdbcClient jdbc, PhotoStorage storage) {
+	PhotoService(JdbcClient jdbc, PhotoStorage storage, PhotoImageProcessor imageProcessor) {
 		this.jdbc = jdbc;
 		this.storage = storage;
+		this.imageProcessor = imageProcessor;
 	}
 
 	@Transactional
@@ -44,10 +43,12 @@ class PhotoService {
 		if (file.getSize() > MAX_BYTES) {
 			throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "PHOTO_TOO_LARGE", "Photos must be 5 MB or smaller");
 		}
-		byte[] bytes = file.getBytes();
-		String contentType = detectContentType(bytes);
-		if (contentType == null) {
-			throw invalidPhoto("Only JPEG, PNG and WebP images are accepted");
+		// The filename, extension and client Content-Type are ignored; only decoded pixels decide acceptance.
+		PhotoImageProcessor.ProcessedPhoto photo = imageProcessor.process(file.getBytes());
+		byte[] bytes = photo.bytes();
+		String contentType = photo.contentType();
+		if (bytes.length > MAX_BYTES) {
+			throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "PHOTO_TOO_LARGE", "Photos must be 5 MB or smaller");
 		}
 
 		UUID userId = activeUserId(cognitoSub);
@@ -119,20 +120,6 @@ class PhotoService {
 		deleteObjectQuietly(key);
 	}
 
-	/** Detects the format from file signatures, ignoring the client-supplied Content-Type header. */
-	static String detectContentType(byte[] bytes) {
-		if (startsWith(bytes, 0, JPEG)) {
-			return "image/jpeg";
-		}
-		if (startsWith(bytes, 0, PNG)) {
-			return "image/png";
-		}
-		if (bytes.length >= 12 && "RIFF".equals(ascii(bytes, 0, 4)) && "WEBP".equals(ascii(bytes, 8, 4))) {
-			return "image/webp";
-		}
-		return null;
-	}
-
 	private UUID activeUserId(String cognitoSub) {
 		return jdbc.sql("SELECT id FROM app_user WHERE cognito_sub = :sub AND status = 'ACTIVE'")
 				.param("sub", cognitoSub)
@@ -166,22 +153,6 @@ class PhotoService {
 
 	private static ApiException photoNotFound() {
 		return new ApiException(HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Photo not found");
-	}
-
-	private static boolean startsWith(byte[] bytes, int offset, byte[] signature) {
-		if (bytes.length < offset + signature.length) {
-			return false;
-		}
-		for (int i = 0; i < signature.length; i++) {
-			if (bytes[offset + i] != signature[i]) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	private static String ascii(byte[] bytes, int offset, int length) {
-		return new String(bytes, offset, length, StandardCharsets.US_ASCII);
 	}
 
 	record PhotoContent(byte[] bytes, String contentType) {

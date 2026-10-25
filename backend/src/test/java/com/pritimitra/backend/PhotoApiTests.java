@@ -3,6 +3,7 @@ package com.pritimitra.backend;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,8 +20,12 @@ import com.jayway.jsonpath.JsonPath;
 import com.pritimitra.backend.config.LegalProperties;
 import com.pritimitra.backend.identity.EmailVerificationChecker;
 import com.pritimitra.backend.photos.PhotoStorage;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,10 +46,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class PhotoApiTests {
 
 	private static final String ADULT_DOB = "2000-01-01";
-	private static final byte[] PNG_BYTES = concat(
-			new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}, new byte[32]);
-	private static final byte[] JPEG_BYTES = concat(new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0},
-			new byte[32]);
+	private static final byte[] PNG_BYTES = encode("png", new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB));
+	private static final byte[] JPEG_BYTES = encode("jpeg", new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB));
 	private static final String PHOTOS = "/api/v1/profile/photos";
 
 	@Autowired
@@ -92,6 +95,81 @@ class PhotoApiTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_PHOTO"));
 		verify(storage, never()).put(anyString(), any(), anyString());
+	}
+
+	@Test
+	void truncatedImageWithValidHeaderIsRejected() throws Exception {
+		String sub = newActiveUser();
+		byte[] truncated = java.util.Arrays.copyOf(JPEG_BYTES, JPEG_BYTES.length / 2);
+		mvc.perform(multipart(PHOTOS).file(new MockMultipartFile("file", "t.jpg", "image/jpeg", truncated))
+						.with(auth(sub)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_PHOTO"))
+				.andExpect(jsonPath("$.detail").value("Only complete JPEG and PNG images are accepted"));
+		verify(storage, never()).put(anyString(), any(), anyString());
+	}
+
+	@Test
+	void unsupportedFormatAndSvgAreRejected() throws Exception {
+		String sub = newActiveUser();
+		byte[] gif = encode("gif", new BufferedImage(8, 8, BufferedImage.TYPE_BYTE_GRAY));
+		mvc.perform(multipart(PHOTOS).file(new MockMultipartFile("file", "a.gif", "image/gif", gif))
+						.with(auth(sub)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_PHOTO"));
+		byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>"
+				.getBytes(StandardCharsets.UTF_8);
+		mvc.perform(multipart(PHOTOS).file(new MockMultipartFile("file", "a.png", "image/png", svg))
+						.with(auth(sub)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_PHOTO"));
+		verify(storage, never()).put(anyString(), any(), anyString());
+	}
+
+	@Test
+	void excessiveDimensionsAreRejectedBeforeStorage() throws Exception {
+		String sub = newActiveUser();
+		byte[] wide = encode("png", new BufferedImage(4097, 4, BufferedImage.TYPE_BYTE_GRAY));
+		mvc.perform(multipart(PHOTOS).file(new MockMultipartFile("file", "wide.png", "image/png", wide))
+						.with(auth(sub)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("PHOTO_DIMENSIONS_TOO_LARGE"));
+		verify(storage, never()).put(anyString(), any(), anyString());
+	}
+
+	@Test
+	void excessivePixelCountIsRejectedBeforeStorage() throws Exception {
+		String sub = newActiveUser();
+		byte[] large = encode("png", new BufferedImage(4000, 4000, BufferedImage.TYPE_BYTE_GRAY));
+		mvc.perform(multipart(PHOTOS).file(new MockMultipartFile("file", "large.png", "image/png", large))
+						.with(auth(sub)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("PHOTO_DIMENSIONS_TOO_LARGE"));
+		verify(storage, never()).put(anyString(), any(), anyString());
+	}
+
+	@Test
+	void storedPhotoIsReencodedAndReportsNormalisedContentType() throws Exception {
+		String sub = newActiveUser();
+		ArgumentCaptor<byte[]> bytes = ArgumentCaptor.forClass(byte[].class);
+		mvc.perform(multipart(PHOTOS).file(jpeg()).with(auth(sub)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.contentType").value("image/jpeg"));
+		verify(storage).put(anyString(), bytes.capture(), eq("image/jpeg"));
+		assertEquals(true, bytes.getValue().length > 2 && (bytes.getValue()[0] & 0xFF) == 0xFF
+				&& (bytes.getValue()[1] & 0xFF) == 0xD8);
+	}
+
+	private static byte[] encode(String format, BufferedImage image) {
+		try {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			if (!ImageIO.write(image, format, out)) {
+				throw new IllegalStateException("No writer for " + format);
+			}
+			return out.toByteArray();
+		} catch (IOException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	@Test
