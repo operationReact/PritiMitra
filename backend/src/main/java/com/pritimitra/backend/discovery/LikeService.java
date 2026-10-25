@@ -2,6 +2,10 @@ package com.pritimitra.backend.discovery;
 
 import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikeStatus;
+import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfile;
+import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfilePage;
+import java.sql.Types;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -21,6 +25,18 @@ class LikeService {
 			FROM onboarding_profile p
 			JOIN app_user u ON u.id = p.user_id
 			WHERE p.public_id = :publicId
+			""";
+
+	private static final String OUTGOING_SQL = """
+			SELECT p.public_id, p.display_name,
+			       (p.discovery_visible AND p.completed_at IS NOT NULL AND u.status = 'ACTIVE') AS discoverable
+			FROM profile_like l
+			JOIN onboarding_profile p ON p.user_id = l.to_user_id
+			JOIN app_user u ON u.id = p.user_id
+			WHERE l.from_user_id = :viewerId
+			  AND (CAST(:cursor AS uuid) IS NULL OR p.public_id > CAST(:cursor AS uuid))
+			ORDER BY p.public_id
+			LIMIT :limit
 			""";
 
 	private final JdbcClient jdbc;
@@ -62,6 +78,33 @@ class LikeService {
 				.param("publicId", targetPublicId)
 				.update();
 		return new LikeStatus(false);
+	}
+
+	@Transactional(readOnly = true)
+	LikedProfilePage outgoing(String cognitoSub, String cursor, int size) {
+		if (size < 1 || size > DiscoveryService.MAX_PAGE_SIZE) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PAGE_SIZE",
+					"Page size must be between 1 and " + DiscoveryService.MAX_PAGE_SIZE);
+		}
+		UUID after = DiscoveryService.decodeCursor(cursor);
+		UUID viewerId = activeViewerId(cognitoSub);
+		List<LikedProfile> rows = jdbc.sql(OUTGOING_SQL)
+				.param("viewerId", viewerId, Types.OTHER)
+				.param("cursor", after, Types.OTHER)
+				.param("limit", size + 1)
+				.query((rs, row) -> {
+					boolean available = rs.getBoolean("discoverable");
+					return new LikedProfile(
+							rs.getObject("public_id", UUID.class),
+							available ? rs.getString("display_name") : null,
+							available);
+				})
+				.list();
+		if (rows.size() <= size) {
+			return new LikedProfilePage(rows, null);
+		}
+		List<LikedProfile> page = rows.subList(0, size);
+		return new LikedProfilePage(page, DiscoveryService.encodeCursor(page.get(page.size() - 1).publicId()));
 	}
 
 	private UUID activeViewerId(String cognitoSub) {

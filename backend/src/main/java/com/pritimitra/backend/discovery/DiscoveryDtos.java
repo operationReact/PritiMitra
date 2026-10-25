@@ -28,4 +28,15 @@ public final class DiscoveryDtos {
 
 	public record LikeStatus(boolean liked) {
 	}
+
+	/**
+	 * One page of the viewer's outgoing likes. {@code nextCursor} is null when no further results exist.
+	 * Items whose profile is no longer discoverable keep their identifier so the viewer can still remove the like,
+	 * but expose no display name.
+	 */
+	public record LikedProfilePage(List<LikedProfile> items, String nextCursor) {
+	}
+
+	public record LikedProfile(UUID publicId, String displayName, boolean available) {
+	}
 }

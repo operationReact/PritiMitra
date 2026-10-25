@@ -11,6 +11,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../profile/presentation/profile_screen.dart' show profileGoalLabels;
 import '../data/discovery_api.dart';
 import '../domain/discovery_models.dart';
+import 'liked_profiles_sheet.dart';
 
 final discoveryApiProvider = Provider<DiscoveryApi>((ref) {
   return DiscoveryApi(client: ref.watch(apiClientProvider));
@@ -122,6 +123,24 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     });
   }
 
+  /// Opens the server-backed list of the viewer's likes. Unliking there updates the feed state
+  /// so the card's button stays consistent with the server.
+  Future<void> _openLikes() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => LikedProfilesSheet(
+        api: ref.read(discoveryApiProvider),
+        onUnliked: (publicId) {
+          if (mounted) {
+            setState(() => _liked.remove(publicId));
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,6 +151,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
         title: const BrandHeader(),
         titleSpacing: AppSpacing.md,
         actions: [
+          TextButton(onPressed: _openLikes, child: const Text('Likes')),
           TextButton(
             onPressed: () => context.go(AppRoutes.profile),
             child: const Text('My profile'),
@@ -224,12 +244,17 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
   }
 }
 
+/// Maps API results to user-facing text. Unknown and private targets arrive as HTTP 404 with
+/// `PROFILE_NOT_FOUND`, which the client surfaces as [ApiUnavailable] with a status code.
 String _discoveryMessage(ApiResult<Object?> result) {
   return switch (result) {
     ApiUnauthorized() => 'Your session has expired. Sign in again to continue.',
-    ApiForbidden(:final code) when code == 'PROFILE_NOT_FOUND' =>
-      'That profile is no longer available.',
     ApiForbidden() => 'Discovery is not available for your account.',
+    ApiUnavailable(:final statusCode, :final code)
+        when statusCode == 404 || code == 'PROFILE_NOT_FOUND' =>
+      'That profile is no longer available.',
+    ApiUnavailable(:final code) when code == 'CANNOT_LIKE_SELF' =>
+      'You cannot like your own profile.',
     _ => 'We could not reach PritiMitra. Check your connection and try again.',
   };
 }

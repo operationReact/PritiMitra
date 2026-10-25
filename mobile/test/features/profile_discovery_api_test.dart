@@ -168,6 +168,56 @@ void main() {
 
       expect(result, isA<ApiUnavailable<DiscoveryPage>>());
     });
+
+    test('fetchLikes reads the outgoing list and keeps unavailable entries nameless', () async {
+      late Uri captured;
+      final api = DiscoveryApi(
+        client: _client((request) async {
+          captured = request.url;
+          return http.Response(
+            jsonEncode({
+              'items': [
+                {'publicId': 'pub-a', 'displayName': 'Asha', 'available': true},
+                {'publicId': 'pub-b', 'displayName': null, 'available': false},
+              ],
+              'nextCursor': 'next',
+            }),
+            200,
+          );
+        }),
+      );
+
+      final result = await api.fetchLikes(cursor: 'c+1', size: 5);
+
+      expect(captured.path, '/api/v1/likes');
+      expect(captured.queryParameters['size'], '5');
+      expect(captured.queryParameters['cursor'], 'c+1');
+      final page = (result as ApiSuccess<LikedProfilePage>).data;
+      expect(page.items.map((p) => p.publicId), ['pub-a', 'pub-b']);
+      expect(page.items[0].available, isTrue);
+      expect(page.items[1].available, isFalse);
+      expect(page.items[1].displayName, isNull);
+      expect(page.nextCursor, 'next');
+    });
+
+    test(
+      'a 404 from the server stays a status-coded unavailable result',
+      () async {
+        final api = DiscoveryApi(
+          client: _client(
+            (request) async =>
+                http.Response(jsonEncode({'code': 'PROFILE_NOT_FOUND'}), 404),
+          ),
+        );
+
+        final result = await api.like('missing');
+
+        expect(result, isA<ApiUnavailable<bool>>());
+        final unavailable = result as ApiUnavailable<bool>;
+        expect(unavailable.statusCode, 404);
+        expect(unavailable.code, 'PROFILE_NOT_FOUND');
+      },
+    );
   });
 
   group('ProfileApi', () {

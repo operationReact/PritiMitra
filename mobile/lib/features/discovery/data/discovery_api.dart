@@ -21,6 +21,21 @@ class DiscoveryApi {
     );
   }
 
+  /// Fetches one page of the viewer's outgoing likes, so liked profiles can be found and unliked after refresh.
+  Future<ApiResult<LikedProfilePage>> fetchLikes({
+    String? cursor,
+    int size = 20,
+  }) {
+    final query = StringBuffer('/api/v1/likes?size=$size');
+    if (cursor != null) {
+      query.write('&cursor=${Uri.encodeQueryComponent(cursor)}');
+    }
+    return _run(
+      (client) => client.getJson(query.toString()),
+      LikedProfilePage.fromJson,
+    );
+  }
+
   /// Likes a profile. Repeating the call is safe. Likes never create matches on their own.
   Future<ApiResult<bool>> like(String publicId) {
     return _run(

@@ -21,6 +21,7 @@ import com.pritimitra.backend.config.LegalProperties;
 import com.pritimitra.backend.identity.EmailVerificationChecker;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -177,6 +178,73 @@ class ProfileDiscoveryApiTests {
 		mvc.perform(put("/api/v1/likes/" + UUID.randomUUID()).with(auth(viewer)))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("PROFILE_NOT_FOUND"));
+	}
+
+	@Test
+	void outgoingLikesPersistAcrossReadsAndHideNamesOfNowPrivateProfiles() throws Exception {
+		String target = newActiveUser("Visible Target", "DATING");
+		makeDiscoverable(target);
+		String viewer = newActiveUser("Liker", "DATING");
+		makeDiscoverable(viewer);
+		String targetId = publicIdOf(target);
+
+		mvc.perform(put("/api/v1/likes/" + targetId).with(auth(viewer))).andExpect(status().isOk());
+		mvc.perform(get("/api/v1/likes").with(auth(viewer)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items.length()").value(1))
+				.andExpect(jsonPath("$.items[0].publicId").value(targetId))
+				.andExpect(jsonPath("$.items[0].displayName").value("Visible Target"))
+				.andExpect(jsonPath("$.items[0].available").value(true))
+				.andExpect(jsonPath("$.nextCursor").doesNotExist());
+
+		mvc.perform(put("/api/v1/profile/discoverability").with(auth(target)).contentType("application/json")
+				.content("{\"discoverable\":false}"))
+				.andExpect(status().isOk());
+		String body = body(get("/api/v1/likes").with(auth(viewer)));
+		assertThat(body, containsString(targetId));
+		assertThat(body, not(containsString("Visible Target")));
+		assertThat(body, not(containsString("@")));
+		assertThat(body, not(containsString("cognito")));
+		mvc.perform(get("/api/v1/likes").with(auth(viewer)))
+				.andExpect(jsonPath("$.items[0].available").value(false));
+
+		mvc.perform(delete("/api/v1/likes/" + targetId).with(auth(viewer))).andExpect(status().isOk());
+		mvc.perform(get("/api/v1/likes").with(auth(viewer)))
+				.andExpect(jsonPath("$.items.length()").value(0));
+	}
+
+	@Test
+	void outgoingLikesPaginateWithOpaqueCursorsAndValidateParameters() throws Exception {
+		String viewer = newActiveUser("Collector", "MEET_PEOPLE");
+		makeDiscoverable(viewer);
+		List<String> liked = new ArrayList<>();
+		for (int i = 0; i < 3; i++) {
+			String target = newActiveUser("Liked " + i, "MEET_PEOPLE");
+			makeDiscoverable(target);
+			String id = publicIdOf(target);
+			liked.add(id);
+			mvc.perform(put("/api/v1/likes/" + id).with(auth(viewer))).andExpect(status().isOk());
+		}
+
+		List<String> walked = new ArrayList<>();
+		String cursor = null;
+		int pages = 0;
+		do {
+			String url = "/api/v1/likes?size=1" + (cursor == null ? "" : "&cursor=" + cursor);
+			String body = body(get(url).with(auth(viewer)));
+			walked.add(JsonPath.read(body, "$.items[0].publicId"));
+			cursor = JsonPath.read(body, "$.nextCursor");
+			pages++;
+		} while (cursor != null && pages < 10);
+		assertEquals(3, pages);
+		assertEquals(new HashSet<>(liked), new HashSet<>(walked));
+
+		mvc.perform(get("/api/v1/likes?size=0").with(auth(viewer)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_PAGE_SIZE"));
+		mvc.perform(get("/api/v1/likes?cursor=!!!bad").with(auth(viewer)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_CURSOR"));
 	}
 
 	@Test
