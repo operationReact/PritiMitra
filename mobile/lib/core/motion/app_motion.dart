@@ -7,7 +7,7 @@ abstract final class AppMotion {
   static const fast = Duration(milliseconds: 150);
   static const standard = Duration(milliseconds: 260);
   static const slow = Duration(milliseconds: 420);
-  static const entrance = Duration(milliseconds: 560);
+  static const entranceDuration = Duration(milliseconds: 560);
 
   static const enter = Curves.easeOutCubic;
   static const exit = Curves.easeInCubic;
@@ -23,7 +23,7 @@ abstract final class AppMotion {
   static Widget entrance({
     required BuildContext context,
     required Widget child,
-    Duration duration = entrance,
+    Duration duration = entranceDuration,
     double verticalOffset = 14,
   }) {
     if (reduceMotion(context)) return child;

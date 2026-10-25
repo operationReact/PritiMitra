@@ -44,15 +44,9 @@ abstract final class AppTheme {
           disabledBackgroundColor: AppColors.border,
           disabledForegroundColor: AppColors.muted,
           minimumSize: const Size(48, 52),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: rounded,
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -60,24 +54,15 @@ abstract final class AppTheme {
           foregroundColor: AppColors.navy,
           side: const BorderSide(color: AppColors.borderLavender),
           minimumSize: const Size(48, 52),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           shape: rounded,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -97,10 +82,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
       textTheme: const TextTheme(
@@ -135,11 +117,7 @@ abstract final class AppTheme {
           fontWeight: FontWeight.w600,
           color: AppColors.navy,
         ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          color: AppColors.muted,
-          height: 1.5,
-        ),
+        bodyLarge: TextStyle(fontSize: 16, color: AppColors.muted, height: 1.5),
         bodyMedium: TextStyle(
           fontSize: 14,
           color: AppColors.muted,

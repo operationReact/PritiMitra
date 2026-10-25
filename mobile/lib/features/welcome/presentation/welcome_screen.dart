@@ -67,7 +67,7 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     AppMotion.entrance(
                       context: context,
-                      duration: AppMotion.entrance,
+                      duration: AppMotion.entranceDuration,
                       child: const _ConnectionIllustration(),
                     ),
                     const SizedBox(height: 22),
@@ -80,11 +80,12 @@ class WelcomeScreen extends StatelessWidget {
                           Text(
                             'A MORE HUMAN WAY TO MEET',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.primary,
-                              letterSpacing: 1.1,
-                              fontSize: 11,
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  letterSpacing: 1.1,
+                                  fontSize: 11,
+                                ),
                           ),
                           const SizedBox(height: 14),
                           Text(
@@ -96,11 +97,12 @@ class WelcomeScreen extends StatelessWidget {
                           Text(
                             'Your kind of connection.',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontSize: 27,
-                              letterSpacing: -0.7,
-                            ),
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontSize: 27,
+                                  letterSpacing: -0.7,
+                                ),
                           ),
                           const SizedBox(height: 18),
                           Text(
@@ -126,7 +128,9 @@ class WelcomeScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           TextButton(
                             onPressed: () => _showComingSoon(context),
-                            child: const Text('Already have an account? Log in'),
+                            child: const Text(
+                              'Already have an account? Log in',
+                            ),
                           ),
                         ],
                       ),
@@ -222,25 +226,25 @@ class _OrbitCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 108,
-        height: 108,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color, color.withValues(alpha: 0.88)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.14),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    width: 108,
+    height: 108,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [color, color.withValues(alpha: 0.88)],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: color.withValues(alpha: 0.14),
+          blurRadius: 18,
+          offset: const Offset(0, 8),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _TrustCard extends StatelessWidget {
@@ -248,33 +252,29 @@ class _TrustCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: const Color(0x55E6E3EE)),
+    padding: const EdgeInsets.all(AppSpacing.md),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      border: Border.all(color: const Color(0x55E6E3EE)),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Connection first. Consent always.',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppColors.navy,
+          ),
         ),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Connection first. Consent always.',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navy,
-              ),
-            ),
-            SizedBox(height: AppSpacing.xs),
-            Text(
-              'You control what you share, and when.',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                color: AppColors.muted,
-              ),
-            ),
-          ],
+        SizedBox(height: AppSpacing.xs),
+        Text(
+          'You control what you share, and when.',
+          style: TextStyle(fontSize: 13, height: 1.35, color: AppColors.muted),
         ),
-      );
+      ],
+    ),
+  );
 }
