@@ -2,9 +2,9 @@ name: Backend CI
 
 on:
   push:
-    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md"]
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md"]
   workflow_dispatch:
 
 permissions:
@@ -23,5 +23,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Validate local PostgreSQL Compose configuration
+        run: docker compose --env-file ../infra/.env.example -f ../infra/docker-compose.yml config --quiet
       # Testcontainers starts PostgreSQL 17 through the runner's Docker daemon.
       - run: sh mvnw -B verify
