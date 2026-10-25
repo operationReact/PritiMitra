@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { Suspense } from "react";
-import { callBackend, BackendTimeoutError, BackendUnavailableError } from "@/lib/auth/backend-proxy";
+import { callBackend } from "@/lib/auth/backend-proxy";
 import { accountGuardDecision, parseMeResponse } from "@/lib/auth/account";
 
 export const metadata = {
@@ -21,14 +21,20 @@ export default function AccountPage() {
 async function AccountStatus() {
   let result;
   try {
-    result = await callBackend({ method: "GET", segments: ["v1", "me"], read: await cookies() });
-  } catch (error) {
-    if (error instanceof BackendTimeoutError || error instanceof BackendUnavailableError) {
-      return <p role="alert">We could not reach your account service. Please try again.</p>;
-    }
+    result = await callBackend({
+      method: "GET",
+      segments: ["v1", "me"],
+      read: await cookies(),
+      // Server Components cannot write cookies, so a rotation here would be lost.
+      canRefresh: false,
+    });
+  } catch {
     return <p role="alert">Your account is temporarily unavailable.</p>;
   }
 
+  if (result.kind === "unavailable") {
+    return <p role="alert">We could not reach your account service. Please try again.</p>;
+  }
   if (result.kind !== "response" || result.status !== 200) {
     return <p>Please sign in to continue.</p>;
   }

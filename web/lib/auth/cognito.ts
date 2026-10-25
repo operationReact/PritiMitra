@@ -3,6 +3,7 @@ import {
   ConfirmForgotPasswordCommand,
   ConfirmSignUpCommand,
   ForgotPasswordCommand,
+  GetTokensFromRefreshTokenCommand,
   GlobalSignOutCommand,
   InitiateAuthCommand,
   ResendConfirmationCodeCommand,
@@ -13,7 +14,7 @@ import { UNSUPPORTED_CHALLENGE_ERROR } from "./errors";
 
 export type IssuedTokens = {
   accessToken: string;
-  refreshToken?: string;
+  refreshToken: string;
   expiresIn?: number;
 };
 
@@ -59,6 +60,7 @@ export async function resendConfirmationCode(email: string): Promise<void> {
 }
 
 export async function signIn(email: string, password: string): Promise<IssuedTokens> {
+  // USER_PASSWORD_AUTH is enabled only on the web app client (infra/terraform/cognito.tf).
   const env = readCognitoEnv();
   const output = await getClient(env.region).send(
     new InitiateAuthCommand({
@@ -73,16 +75,19 @@ export async function signIn(email: string, password: string): Promise<IssuedTok
   return toIssuedTokens(output.AuthenticationResult);
 }
 
+/**
+ * Exchanges a refresh token for new tokens. The app client has refresh-token rotation enabled, so the response
+ * carries a new refresh token that must replace the old one. Callers must persist it.
+ */
 export async function refreshTokens(refreshToken: string): Promise<IssuedTokens> {
   const env = readCognitoEnv();
   const output = await getClient(env.region).send(
-    new InitiateAuthCommand({
+    new GetTokensFromRefreshTokenCommand({
       ClientId: env.clientId,
-      AuthFlow: "REFRESH_TOKEN_AUTH",
-      AuthParameters: { REFRESH_TOKEN: refreshToken },
+      RefreshToken: refreshToken,
     }),
   );
-  return toIssuedTokens(output.AuthenticationResult, { requireRefreshToken: false });
+  return toIssuedTokens(output.AuthenticationResult);
 }
 
 export async function forgotPassword(email: string): Promise<void> {
@@ -108,11 +113,8 @@ export async function globalSignOut(accessToken: string): Promise<void> {
   await getClient(env.region).send(new GlobalSignOutCommand({ AccessToken: accessToken }));
 }
 
-function toIssuedTokens(
-  result: { AccessToken?: string; RefreshToken?: string; ExpiresIn?: number } | undefined,
-  options: { requireRefreshToken?: boolean } = { requireRefreshToken: true },
-): IssuedTokens {
-  if (!result?.AccessToken || (options.requireRefreshToken !== false && !result.RefreshToken)) {
+function toIssuedTokens(result: { AccessToken?: string; RefreshToken?: string; ExpiresIn?: number } | undefined): IssuedTokens {
+  if (!result?.AccessToken || !result.RefreshToken) {
     throw namedError("AuthResultMissingError", "Cognito did not return the expected tokens");
   }
   return {

@@ -4,8 +4,13 @@ output "cognito_user_pool_id" {
 }
 
 output "cognito_app_client_id" {
-  description = "Public app client ID. Set as COGNITO_CLIENT_ID for web and mobile."
+  description = "Public mobile app client ID (SRP and refresh only). Set as COGNITO_CLIENT_ID for the Flutter app."
   value       = aws_cognito_user_pool_client.app.id
+}
+
+output "cognito_web_app_client_id" {
+  description = "Web app client ID (password and refresh only, used by the Next.js server). Set as COGNITO_CLIENT_ID for the web server. Both client IDs belong in the API's COGNITO_CLIENT_IDS."
+  value       = aws_cognito_user_pool_client.web.id
 }
 
 output "cognito_issuer_uri" {

@@ -42,11 +42,12 @@ resource "aws_cognito_user_pool" "main" {
   depends_on = [aws_ses_domain_identity.mail]
 }
 
+# Mobile (Flutter/Amplify): SRP keeps the password off the wire. Amplify performs the SRP exchange on-device.
 resource "aws_cognito_user_pool_client" "app" {
   name         = "${var.project_name}-${var.environment}-app"
   user_pool_id = aws_cognito_user_pool.main.id
 
-  # Public clients: Flutter and the Next.js server use PKCE/SRP without a client secret stored in the app.
+  # Public client: no client secret is stored in the app.
   generate_secret = false
 
   explicit_auth_flows = [
@@ -69,10 +70,46 @@ resource "aws_cognito_user_pool_client" "app" {
 
   refresh_token_rotation {
     feature                    = "ENABLED"
-    retry_grace_period_seconds = 0
+    retry_grace_period_seconds = var.cognito_refresh_retry_grace_seconds
   }
 
   allowed_oauth_flows_user_pool_client = false
   callback_urls                        = var.cognito_callback_urls
   logout_urls                          = var.cognito_logout_urls
+}
+
+# Web (Next.js server-side BFF): the server receives the password from the browser over TLS and forwards it to
+# Cognito with USER_PASSWORD_AUTH. SRP would not hide the password from this server, and running SRP in the browser
+# would hand tokens to client-side code, which the HttpOnly cookie design forbids. This client is therefore limited to
+# password and refresh flows, so the password flow is not enabled on the mobile client.
+resource "aws_cognito_user_pool_client" "web" {
+  name         = "${var.project_name}-${var.environment}-web"
+  user_pool_id = aws_cognito_user_pool.main.id
+
+  generate_secret = false
+
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+
+  prevent_user_existence_errors = "ENABLED"
+  enable_token_revocation       = true
+
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+
+  refresh_token_rotation {
+    feature                    = "ENABLED"
+    retry_grace_period_seconds = var.cognito_refresh_retry_grace_seconds
+  }
+
+  allowed_oauth_flows_user_pool_client = false
 }

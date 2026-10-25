@@ -79,6 +79,17 @@ variable "cognito_deletion_protection" {
   }
 }
 
+variable "cognito_refresh_retry_grace_seconds" {
+  description = "Seconds during which a rotated refresh token may be reused, so concurrent or retried refreshes do not log the user out. Cognito allows 0-60."
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.cognito_refresh_retry_grace_seconds >= 0 && var.cognito_refresh_retry_grace_seconds <= 60
+    error_message = "cognito_refresh_retry_grace_seconds must be between 0 and 60."
+  }
+}
+
 variable "github_repository" {
   description = "GitHub repository allowed to assume the deploy role through OIDC, in owner/repo form."
   type        = string

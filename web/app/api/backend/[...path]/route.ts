@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { authErrorResponse, readBoundedText, rejectUnsafeRequest, withSessionCookies } from "@/lib/auth/http";
-import { BackendTimeoutError, BackendUnavailableError, callBackend } from "@/lib/auth/backend-proxy";
+import { callBackend } from "@/lib/auth/backend-proxy";
 import { clearSessionCookies, type CookieWriter } from "@/lib/auth/session";
 
 const MAX_PROXY_BODY_BYTES = 64 * 1024;
@@ -34,14 +34,8 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
 
   let result;
   try {
-    result = await callBackend({ method, segments: path, read: await cookies(), body });
-  } catch (error) {
-    if (error instanceof BackendTimeoutError) {
-      return authErrorResponse(504, "backend_timeout");
-    }
-    if (error instanceof BackendUnavailableError) {
-      return authErrorResponse(502, "backend_unavailable");
-    }
+    result = await callBackend({ method, segments: path, read: await cookies(), body, canRefresh: true });
+  } catch {
     return authErrorResponse(503, "auth_unavailable");
   }
 
@@ -49,9 +43,14 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
     return authErrorResponse(404, "not_found");
   }
   if (result.kind === "unauthenticated") {
-    const response = authErrorResponse(401, "session_expired");
-    clearSessionCookies(response.cookies as CookieWriter);
-    return response;
+    return authErrorResponse(401, "session_expired");
+  }
+  if (result.kind === "unavailable") {
+    const failure = authErrorResponse(
+      result.reason === "timeout" ? 504 : 502,
+      result.reason === "timeout" ? "backend_timeout" : "backend_unavailable",
+    );
+    return result.refreshed ? withSessionCookies(failure, result.refreshed) : failure;
   }
   if (result.status === 401) {
     const response = authErrorResponse(401, "session_expired");

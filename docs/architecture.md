@@ -10,7 +10,7 @@
 | Database | PostgreSQL 17, Flyway migrations | `backend/src/main/resources/db/migration/` |
 | Local infrastructure | Docker Compose | `infra/docker-compose.yml` |
 | CI | GitHub Actions | `.github/workflows/` |
-| Authentication | Amazon Cognito User Pools (SRP sign-in, refresh rotation), validated by Spring Security resource server | `backend/`, `web/`, `mobile/` |
+| Authentication | Amazon Cognito User Pools (mobile: SRP; web: password flow over TLS to the BFF; refresh rotation with grace period), validated by Spring Security resource server | `backend/`, `web/`, `mobile/` |
 | Transactional email | Amazon SES for Cognito verification and recovery emails | `infra/terraform/ses.tf` |
 | AWS infrastructure | Terraform, region `ap-south-1` (configurable), GitHub OIDC | `infra/terraform/` |
 
@@ -27,6 +27,12 @@
 - **Identity provider:** Amazon Cognito User Pools handles sign-up, email verification, password reset, and access/ID/refresh tokens. The application never stores password hashes, verification codes, reset-token digests, or refresh tokens.
 - **Resource server:** Spring Boot validates Cognito access tokens (signature, issuer, expiry, `token_use=access`, `client_id`). The external identity key is the immutable Cognito `sub`, stored uniquely on `app_user`.
 - **Web:** Next.js route handlers hold tokens server-side in `HttpOnly` cookies scoped to `/api`, `Secure` in production. Protected backend calls go through an allow-listed proxy. No tokens in `localStorage` or `sessionStorage`.
+- **Cognito app clients (split by least privilege):**
+  - Mobile client: SRP (`ALLOW_USER_SRP_AUTH`) and refresh flows only. Amplify performs SRP, so the password is never sent in the clear.
+  - Web client: `ALLOW_USER_PASSWORD_AUTH` and refresh flows, no client secret. The browser sends the password over TLS to the Next.js route handler, which passes it to Cognito. SRP would not keep the password from that server, and running SRP in the browser would put tokens there. Custom SRP cryptography is not implemented.
+  - Refresh uses `GetTokensFromRefreshToken`. Both clients enable refresh-token rotation with a retry grace period (`cognito_refresh_retry_grace_seconds`, default 10, range 0–60). Every rotated refresh token is persisted, including when the backend then times out. A Server Component cannot set cookies, so it never refreshes.
+  - Backend `COGNITO_CLIENT_IDS` lists both client IDs.
+- **Profile verification:** Selfie or identity verification is not implemented. Profiles must not be labelled photo-verified or identity-verified.
 - **Mobile:** `amplify_auth_cognito` stores tokens through Amplify's native secure storage (Keychain/Keystore).
 - **Email:** Cognito sends verification and recovery mail through SES from the verified `mail.pritimitra.com` identity. Local Mailpit is not provisioned yet: the backend sends no application-generated email, and Cognito mail never goes to Mailpit.
 

@@ -1,22 +1,8 @@
 import { readBackendOrigin } from "./config";
 import { resolveBackendPath, type BackendMethod } from "./proxy-policy";
-import { resolveFreshSession, type CookieReader, type ResolvedSession } from "./session";
+import { resolveFreshSession, type CookieReader, type RefreshedTokens } from "./session";
 
 const BACKEND_TIMEOUT_MS = 10_000;
-
-export class BackendTimeoutError extends Error {
-  constructor() {
-    super("Backend request timed out");
-    this.name = "BackendTimeoutError";
-  }
-}
-
-export class BackendUnavailableError extends Error {
-  constructor() {
-    super("Backend request failed");
-    this.name = "BackendUnavailableError";
-  }
-}
 
 export type BackendCallInput = {
   method: string;
@@ -24,18 +10,22 @@ export type BackendCallInput = {
   read: CookieReader;
   /** Raw request body; only forwarded for PUT and POST. */
   body?: string;
+  /**
+   * Only route handlers can write rotated cookies. Server Components pass false: refreshing there would consume
+   * the refresh token without persisting its replacement, which would log the user out.
+   */
+  canRefresh: boolean;
 };
 
+type BackendAttempt =
+  | { kind: "response"; status: number; body: string; contentType: string | null }
+  | { kind: "unavailable"; reason: "timeout" | "unreachable" };
+
+/** `refreshed` is set whenever a rotation happened, even if the backend call then failed. */
 export type BackendCallResult =
   | { kind: "not_allowed" }
   | { kind: "unauthenticated" }
-  | {
-      kind: "response";
-      status: number;
-      body: string;
-      contentType: string | null;
-      refreshed?: ResolvedSession["refreshed"];
-    };
+  | (BackendAttempt & { refreshed?: RefreshedTokens });
 
 /**
  * Forwards an allow-listed request to the backend with the access token from the session cookie.
@@ -49,21 +39,22 @@ export async function callBackend(input: BackendCallInput): Promise<BackendCallR
   }
   const origin = readBackendOrigin();
 
-  const session = await resolveFreshSession(input.read);
+  const session = await resolveFreshSession(input.read, { allowRefresh: input.canRefresh });
   if (!session) {
     return { kind: "unauthenticated" };
   }
 
-  let attempt = await send(origin, path, method, session.accessToken, input.body);
-  if (attempt.status === 401 && !session.refreshed) {
-    const renewed = await resolveFreshSession(input.read, { force: true });
+  let current = session;
+  let attempt = await send(origin, path, method, current.accessToken, input.body);
+  if (attempt.kind === "response" && attempt.status === 401 && !current.refreshed) {
+    const renewed = await resolveFreshSession(input.read, { force: true, allowRefresh: input.canRefresh });
     if (!renewed) {
       return { kind: "unauthenticated" };
     }
-    attempt = await send(origin, path, method, renewed.accessToken, input.body);
-    return { ...attempt, refreshed: renewed.refreshed };
+    current = renewed;
+    attempt = await send(origin, path, method, current.accessToken, input.body);
   }
-  return { ...attempt, refreshed: session.refreshed };
+  return { ...attempt, refreshed: current.refreshed };
 }
 
 async function send(
@@ -72,7 +63,7 @@ async function send(
   method: BackendMethod,
   accessToken: string,
   body: string | undefined,
-): Promise<{ kind: "response"; status: number; body: string; contentType: string | null }> {
+): Promise<BackendAttempt> {
   const forwardBody = method !== "GET" && body !== undefined;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
@@ -82,9 +73,8 @@ async function send(
     headers["Content-Type"] = "application/json";
   }
 
-  let upstream: Response;
   try {
-    upstream = await fetch(new URL(path, origin), {
+    const upstream = await fetch(new URL(path, origin), {
       method,
       headers,
       body: forwardBody ? body : undefined,
@@ -92,17 +82,14 @@ async function send(
       redirect: "error",
       signal: AbortSignal.timeout(BACKEND_TIMEOUT_MS),
     });
+    return {
+      kind: "response",
+      status: upstream.status,
+      body: await upstream.text(),
+      contentType: upstream.headers.get("content-type"),
+    };
   } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new BackendTimeoutError();
-    }
-    throw new BackendUnavailableError();
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    return { kind: "unavailable", reason: timedOut ? "timeout" : "unreachable" };
   }
-
-  return {
-    kind: "response",
-    status: upstream.status,
-    body: await upstream.text(),
-    contentType: upstream.headers.get("content-type"),
-  };
 }

@@ -22,14 +22,17 @@ export type CookieWriter = {
   set(name: string, value: string, options: SessionCookieOptions): unknown;
 };
 
+export type RefreshedTokens = {
+  accessToken: string;
+  /** The rotated refresh token that replaces the one the request presented. */
+  refreshToken: string;
+  expiresIn?: number;
+};
+
 export type ResolvedSession = {
   accessToken: string;
-  /** Present only when the session was refreshed; callers must persist it when they can write cookies. */
-  refreshed?: {
-    accessToken: string;
-    refreshToken?: string;
-    expiresIn?: number;
-  };
+  /** Present only when the session was refreshed. Callers must persist it, even when the rest of their work fails. */
+  refreshed?: RefreshedTokens;
 };
 
 const SESSION_REJECTION_ERRORS = new Set(["NotAuthorizedException", "UserNotFoundException"]);
@@ -48,12 +51,13 @@ export function readSessionTokens(read: CookieReader): { accessToken?: string; r
 
 /**
  * Returns a usable access token. Refreshes with the refresh token when the access token is missing,
- * near expiry, or when force is set (after the backend rejected it). Returns null when there is no
- * valid session, and throws only for non-session failures such as network or configuration errors.
+ * near expiry, or when force is set (after the backend rejected it). Returns null when Cognito rejects the session,
+ * when there is no refresh token, or when allowRefresh is false. Throws for transient failures (network, configuration)
+ * so the caller keeps the existing cookies: a rotation only happens when Cognito returns a response.
  */
 export async function resolveFreshSession(
   read: CookieReader,
-  options: { force?: boolean; nowSeconds?: number } = {},
+  options: { force?: boolean; nowSeconds?: number; allowRefresh?: boolean } = {},
 ): Promise<ResolvedSession | null> {
   const now = options.nowSeconds ?? Math.floor(Date.now() / 1000);
   const { accessToken, refreshToken } = readSessionTokens(read);
@@ -61,7 +65,7 @@ export async function resolveFreshSession(
   if (accessToken && !options.force && !needsRefresh(accessToken, now)) {
     return { accessToken };
   }
-  if (!refreshToken) {
+  if (!refreshToken || options.allowRefresh === false) {
     return null;
   }
 
@@ -87,7 +91,7 @@ export async function resolveFreshSession(
 /** Writes the session cookies after sign-in or a refresh. Tokens are never returned in response bodies. */
 export function setSessionCookies(
   target: CookieWriter,
-  tokens: { accessToken: string; refreshToken?: string; expiresIn?: number },
+  tokens: { accessToken: string; refreshToken: string; expiresIn?: number },
   isProduction: boolean = isProductionRuntime(),
 ): void {
   target.set(
@@ -95,14 +99,13 @@ export function setSessionCookies(
     tokens.accessToken,
     buildSessionCookieOptions({ isProduction, maxAge: accessTokenMaxAge(tokens.expiresIn) }),
   );
-  if (tokens.refreshToken) {
-    target.set(
-      REFRESH_COOKIE_NAME,
-      tokens.refreshToken,
-      buildSessionCookieOptions({ isProduction, maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS }),
-    );
-  }
+  target.set(
+    REFRESH_COOKIE_NAME,
+    tokens.refreshToken,
+    buildSessionCookieOptions({ isProduction, maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS }),
+  );
 }
+
 
 export function clearSessionCookies(target: CookieWriter, isProduction: boolean = isProductionRuntime()): void {
   const cleared = buildClearedCookieOptions(isProduction);

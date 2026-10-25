@@ -99,7 +99,7 @@ export async function readBoundedText(request: Request, maxBytes: number): Promi
 /** Attaches refreshed or newly issued session cookies to a response. */
 export function withSessionCookies(
   response: NextResponse,
-  tokens: { accessToken: string; refreshToken?: string; expiresIn?: number },
+  tokens: { accessToken: string; refreshToken: string; expiresIn?: number },
 ): NextResponse {
   setSessionCookies(response.cookies as CookieWriter, tokens, isProductionRuntime());
   return response;

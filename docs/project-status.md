@@ -34,7 +34,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Backend (Spring Boot): Cognito JWT resource server; account states `PENDING_EMAIL_VERIFICATION`, `ONBOARDING_INCOMPLETE`, `ACTIVE`, `INELIGIBLE`, `SUSPENDED`; enum interested-in set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`, mutually exclusive); append-only consents with configurable draft legal versions; ineligible-account retention purge (scheduled, deletes the Cognito identity first).
 - Web (Next.js): server-side Cognito auth routes; `HttpOnly` session cookies scoped to `/api`; `Secure` in production; backend proxy with allow-listed paths. No tokens in `localStorage`/`sessionStorage`.
 - Mobile (Flutter): `amplify_auth_cognito` integration, route guard, and an API client. Amplify keeps tokens in native secure storage (`amplify_secure_storage` is resolved in `pubspec.lock`).
-- Infrastructure (`infra/terraform/`): Cognito user pool and public app client (refresh rotation enabled, 60-minute access tokens, 30-day refresh), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
+- Infrastructure (`infra/terraform/`): Cognito user pool with a mobile SRP app client and a web password app client (both refresh rotation enabled, 60-minute access tokens, 30-day refresh, configurable grace period), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
 
 ### Pre-PR review (this change)
 - Backend `mvnw.cmd -B verify`: 27 tests passed (adds LegalPropertiesTests 4).
@@ -44,7 +44,22 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Secret scan over the diff: no keys, tokens, or real credentials. The only match is a fake test password literal.
 - Known residual: Cognito self sign-up is open at the pool level. Product access still requires server-side age, consent, and activation. Pool-level sign-up restrictions and live verification are not yet tested.
 
+### Cognito flow and rotation fixes (PR review)
+- Web sign-in uses `USER_PASSWORD_AUTH` on the new web app client. The Terraform client previously enabled only SRP, so the web sign-in would have failed. Mobile keeps SRP. See `docs/architecture.md`.
+- Web refresh uses `GetTokensFromRefreshToken`, not `REFRESH_TOKEN_AUTH`. Each rotated refresh token is persisted, including when the backend call times out or is unreachable. A refresh rejection does not clear cookies on the proxy path, so a concurrent request cannot be overwritten with stale tokens. A missing refresh token in the response is treated as an error.
+- Rotation grace period: `cognito_refresh_retry_grace_seconds` (default 10, range 0–60). Whether live Cognito returns a different refresh token on grace-period reuse is not yet verified.
+- Known limitation: a Server Component (`/account`) cannot refresh, so an expired access token shows a sign-in message until the user refreshes through a route handler.
+- Tests added with mocked AWS SDK responses: `cognito.test.ts` (sign-in flow, refresh request, missing refresh token, rejection), `session.test.ts` (refresh outcome, cookie flags, clearing), `backend-proxy.test.ts` (rotated tokens kept on timeout and unreachable backend, no refresh for Server Components).
+- Selfie or identity verification is not implemented. No profile is labelled verified.
+
 ### Verification status (actual runs)
+- Backend: `mvnw.cmd -B verify` passed, 27 tests (run after the Cognito fixes; backend code unchanged).
+- Web: `vitest run` 60 tests passed (8 files); `tsc --noEmit` exit 0; `eslint` exit 0; `next build` exit 0.
+- Flutter: `flutter analyze` no issues; `flutter test` 44 tests passed.
+- Terraform: `fmt -check -recursive` exit 0; `init -backend=false` exit 0; `validate` valid. No plan or apply.
+- No live Cognito test has run.
+
+### Verification status (earlier run)
 - Backend: `mvnw.cmd -B verify` passed with 27 tests (AuthSchemaMigrationTests 7, BackendApplicationTests 1, IneligibleAccountPurgeTests 2, LegalPropertiesTests 4, OnboardingApiTests 13). Testcontainers PostgreSQL 17.
 - Web: `npm test` 42 tests passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` exit 0. No live Cognito test has run.
 - Mobile: `flutter analyze` no issues; `flutter test` 44 tests passed; `flutter build apk --debug` succeeded. iOS was not built. No live Cognito test has run.
