@@ -4,3 +4,40 @@
 **/.env
 **/.env.*
 !**/.env.example
+
+# IDE and editor state
+.vscode/
+.idea/
+*.iml
+
+# Flutter / Dart build output and caches
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/ios/Pods/
+
+# Next.js / Node
+web/node_modules/
+web/.next/
+web/out/
+web/coverage/
+*.log
+npm-debug.log*
+
+# Java / Maven
+backend/target/
+*.class
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+
+# OS
+.DS_Store
+Thumbs.db

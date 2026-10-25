@@ -38,7 +38,6 @@ class AccountStatusScreen extends ConsumerWidget {
   static String _titleFor(AccountStatus? status) {
     return switch (status) {
       AccountStatus.pendingEmailVerification => 'Verify your email',
-      AccountStatus.onboardingIncomplete => 'Finish setting up',
       AccountStatus.suspended => 'Account unavailable',
       _ => 'We could not load your account',
     };
@@ -48,8 +47,6 @@ class AccountStatusScreen extends ConsumerWidget {
     return switch (status) {
       AccountStatus.pendingEmailVerification =>
         'Confirm your email to continue. Sign out and sign in again after you confirm.',
-      AccountStatus.onboardingIncomplete =>
-        'Profile setup is not available in this build yet.',
       AccountStatus.suspended =>
         'This account cannot use PritiMitra right now.',
       _ => 'Check your connection and try again.',

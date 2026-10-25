@@ -10,10 +10,12 @@ import com.pritimitra.backend.onboarding.OnboardingDtos.ConsentItem;
 import com.pritimitra.backend.onboarding.OnboardingDtos.MeResponse;
 import com.pritimitra.backend.onboarding.OnboardingDtos.OnboardingStateResponse;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileRequest;
+import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileResponse;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +60,15 @@ class OnboardingService {
 	@Transactional
 	OnboardingStateResponse getState(String cognitoSub, String accessToken) {
 		return stateOf(resolve(cognitoSub, accessToken));
+	}
+
+	@Transactional
+	ProfileResponse getProfile(String cognitoSub, String accessToken) {
+		AppUser user = resolve(cognitoSub, accessToken);
+		return profiles.findById(user.getId())
+				.map(p -> new ProfileResponse(p.getDisplayName(), p.getBio(), p.getProfilePrompt(),
+						new HashSet<>(p.getGoals())))
+				.orElseGet(() -> new ProfileResponse(null, null, null, Set.of()));
 	}
 
 	/**

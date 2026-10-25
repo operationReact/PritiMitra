@@ -9,12 +9,21 @@ class AppConfig {
     this.cognitoClientId = const String.fromEnvironment('COGNITO_CLIENT_ID'),
     this.cognitoRegion = const String.fromEnvironment('COGNITO_REGION'),
     this.apiBaseUrl = const String.fromEnvironment('API_BASE_URL'),
+    this.termsVersion = const String.fromEnvironment('PRITIMITRA_TERMS_VERSION'),
+    this.privacyVersion = const String.fromEnvironment('PRITIMITRA_PRIVACY_VERSION'),
   });
 
   final String cognitoUserPoolId;
   final String cognitoClientId;
   final String cognitoRegion;
   final String apiBaseUrl;
+
+  /// Empty when not configured. The consent step stays disabled rather than inventing a version.
+  final String termsVersion;
+  final String privacyVersion;
+
+  bool get hasPolicyVersions =>
+      termsVersion.trim().isNotEmpty && privacyVersion.trim().isNotEmpty;
 
   bool get isAuthConfigured =>
       cognitoUserPoolId.trim().isNotEmpty &&

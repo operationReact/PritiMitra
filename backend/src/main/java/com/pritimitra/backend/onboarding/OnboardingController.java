@@ -4,6 +4,7 @@ import com.pritimitra.backend.onboarding.OnboardingDtos.AgeVerificationRequest;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ConsentRequest;
 import com.pritimitra.backend.onboarding.OnboardingDtos.OnboardingStateResponse;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileRequest;
+import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -30,6 +31,11 @@ class OnboardingController {
 	@GetMapping
 	OnboardingStateResponse state(@AuthenticationPrincipal Jwt jwt) {
 		return onboarding.getState(jwt.getSubject(), jwt.getTokenValue());
+	}
+
+	@GetMapping("/profile")
+	ProfileResponse profile(@AuthenticationPrincipal Jwt jwt) {
+		return onboarding.getProfile(jwt.getSubject(), jwt.getTokenValue());
 	}
 
 	@PutMapping("/age-verification")

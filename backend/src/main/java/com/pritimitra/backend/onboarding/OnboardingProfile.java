@@ -148,6 +148,14 @@ class OnboardingProfile {
 		return displayName;
 	}
 
+	String getBio() {
+		return bio;
+	}
+
+	String getProfilePrompt() {
+		return profilePrompt;
+	}
+
 	Integer getDiscoveryMinAge() {
 		return discoveryMinAge;
 	}

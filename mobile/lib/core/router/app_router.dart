@@ -10,6 +10,7 @@ import '../../features/auth/presentation/ineligible_screen.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/welcome/presentation/welcome_screen.dart';
 import '../motion/app_motion.dart';
 
@@ -21,6 +22,7 @@ abstract final class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const resetPassword = '/reset-password';
   static const accountStatus = '/account-status';
+  static const onboarding = '/onboarding';
   static const ineligible = '/ineligible';
   static const home = '/home';
 
@@ -49,6 +51,8 @@ String? redirectForAccess({required String location, required AuthState state}) 
       AppRoutes.accountStatus || AppRoutes.confirmSignUp => null,
       _ => AppRoutes.accountStatus,
     },
+    AccessDecision.onboarding =>
+      path == AppRoutes.onboarding ? null : AppRoutes.onboarding,
     AccessDecision.ineligible =>
       path == AppRoutes.ineligible ? null : AppRoutes.ineligible,
     AccessDecision.home => path == AppRoutes.home ? null : AppRoutes.home,
@@ -91,6 +95,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _page(AppRoutes.accountStatus, const AccountStatusScreen()),
+      _page(AppRoutes.onboarding, const OnboardingScreen()),
       _page(AppRoutes.ineligible, const IneligibleScreen()),
       _page(AppRoutes.home, const HomeScreen()),
     ],

@@ -56,4 +56,8 @@ public final class OnboardingDtos {
 
 	public record MeResponse(UUID id, AccountStatus status, String displayName) {
 	}
+
+	/** Editable profile fields saved so far, used to resume onboarding without losing earlier input. */
+	public record ProfileResponse(String displayName, String bio, String profilePrompt, Set<ConnectionGoal> goals) {
+	}
 }

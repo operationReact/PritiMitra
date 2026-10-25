@@ -37,10 +37,18 @@ void main() {
       );
     });
 
-    test('pending, onboarding and suspended users see account status', () {
+    test('onboarding-incomplete users go to the onboarding flow', () {
+      expect(
+        decideAccess(
+          const AuthSignedIn(status: AccountStatus.onboardingIncomplete),
+        ),
+        AccessDecision.onboarding,
+      );
+    });
+
+    test('pending and suspended users see account status', () {
       for (final status in [
         AccountStatus.pendingEmailVerification,
-        AccountStatus.onboardingIncomplete,
         AccountStatus.suspended,
       ]) {
         expect(

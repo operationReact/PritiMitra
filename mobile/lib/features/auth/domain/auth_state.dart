@@ -26,7 +26,7 @@ final class AuthSignedIn extends AuthState {
 }
 
 /// Where the router should send the user.
-enum AccessDecision { loading, signIn, accountStatus, ineligible, home }
+enum AccessDecision { loading, signIn, accountStatus, onboarding, ineligible, home }
 
 AccessDecision decideAccess(AuthState state) {
   return switch (state) {
@@ -35,6 +35,7 @@ AccessDecision decideAccess(AuthState state) {
     AuthSignedIn(status: null) => AccessDecision.accountStatus,
     AuthSignedIn(status: AccountStatus.active) => AccessDecision.home,
     AuthSignedIn(status: AccountStatus.ineligible) => AccessDecision.ineligible,
+    AuthSignedIn(status: AccountStatus.onboardingIncomplete) => AccessDecision.onboarding,
     AuthSignedIn() => AccessDecision.accountStatus,
   };
 }
