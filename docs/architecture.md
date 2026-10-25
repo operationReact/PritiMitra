@@ -10,6 +10,9 @@
 | Database | PostgreSQL 17, Flyway migrations | `backend/src/main/resources/db/migration/` |
 | Local infrastructure | Docker Compose | `infra/docker-compose.yml` |
 | CI | GitHub Actions | `.github/workflows/` |
+| Authentication | Amazon Cognito User Pools (SRP sign-in, refresh rotation), validated by Spring Security resource server | `backend/`, `web/`, `mobile/` |
+| Transactional email | Amazon SES for Cognito verification and recovery emails | `infra/terraform/ses.tf` |
+| AWS infrastructure | Terraform, region `ap-south-1` (configurable), GitHub OIDC | `infra/terraform/` |
 
 ## Decisions
 
@@ -18,6 +21,29 @@
 - **JVM timezone pinned to UTC.** The pgjdbc driver sends the JVM timezone to PostgreSQL. The startup code sets the JVM default to UTC, and Surefire runs with `user.timezone=UTC`. Revisit this if a more targeted JDBC/session-timezone configuration is adopted; keep user-facing timestamps timezone-aware.
 - **Mobile bottom navigation (proposed):** Discover, Likes, Blind Date, Community, Chats. Profile is reached from the avatar. The Figma bottom-nav component still needs updating from three tabs.
 - **Secrets stay out of Git.** Commit only `.env.example` templates. Root `.gitignore` excludes actual dotenv files across all modules.
+
+## Authentication and account lifecycle (Phase 3)
+
+- **Identity provider:** Amazon Cognito User Pools handles sign-up, email verification, password reset, and access/ID/refresh tokens. The application never stores password hashes, verification codes, reset-token digests, or refresh tokens.
+- **Resource server:** Spring Boot validates Cognito access tokens (signature, issuer, expiry, `token_use=access`, `client_id`). The external identity key is the immutable Cognito `sub`, stored uniquely on `app_user`.
+- **Web:** Next.js route handlers hold tokens server-side in `HttpOnly` cookies scoped to `/api`, `Secure` in production. Protected backend calls go through an allow-listed proxy. No tokens in `localStorage` or `sessionStorage`.
+- **Mobile:** `amplify_auth_cognito` stores tokens through Amplify's native secure storage (Keychain/Keystore).
+- **Email:** Cognito sends verification and recovery mail through SES from the verified `mail.pritimitra.com` identity. Mailpit is for application-generated local mail only.
+
+Account states (explicit, not overloaded):
+
+| State | Meaning | Protected APIs |
+|---|---|---|
+| `PENDING_EMAIL_VERIFICATION` | Cognito account exists; email not verified | Denied |
+| `ONBOARDING_INCOMPLETE` | Verified; onboarding not completed | Denied |
+| `ACTIVE` | Eligible and onboarded (set only by `complete`) | Allowed |
+| `INELIGIBLE` | Failed the 18+ rule; no date of birth is stored | Denied |
+| `SUSPENDED` | Restricted for safety, policy, or administrative reasons | Denied |
+
+- **Age:** Enforced server-side. A client-side checkbox is never proof of eligibility. Underage attempts are marked `INELIGIBLE` with no date of birth stored, then purged after `PRITIMITRA_INELIGIBLE_RETENTION_DAYS` by a scheduled job that deletes the Cognito identity first.
+- **Consents:** Append-only (`consent_record`). Each row records the policy version, timestamp, and account. Local versions are `terms-draft-v1` and `privacy-draft-v1`. Production startup fails unless `PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` and approved versions and https URLs are set.
+- **Interested-in:** Validated enum set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`). `ALL_IDENTITIES` is exclusive. Optional, never inferred from other profile fields.
+- **Identity visibility:** Defaults to private.
 
 ## Data flow
 

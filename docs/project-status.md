@@ -28,7 +28,7 @@ Status: implementation in progress on `feature/phase-2-rich-design-system`.
 Run branch CI to completion, fix build/test issues, then inspect rendered screenshots at mobile, tablet, and desktop breakpoints against Figma and tune geometry before marking Phase 2 complete.
 
 ## Phase 3 — Authentication and onboarding (AWS-native)
-Status: in progress on `feature/phase-3-auth-onboarding`. Nothing is committed or pushed yet. Not production-ready.
+Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and pushed to origin; no PR has been opened or merged. Not production-ready.
 
 ### Implemented
 - Backend (Spring Boot): Cognito JWT resource server; account states `PENDING_EMAIL_VERIFICATION`, `ONBOARDING_INCOMPLETE`, `ACTIVE`, `INELIGIBLE`, `SUSPENDED`; enum interested-in set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`, mutually exclusive); append-only consents with configurable draft legal versions; ineligible-account retention purge (scheduled, deletes the Cognito identity first).
@@ -51,7 +51,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Nothing is committed o
 - Cost considerations before provisioning: ECS Fargate, RDS, ALB, NAT gateway, SES, and Cognito pricing by MAU.
 
 ### Next task
-Get explicit authorization for the DNS records below, then provision a development Cognito pool and SES identity to run live integration tests. Add ECS, ALB, and RDS Terraform after cost approval.
+Complete the remaining Phase 3 automated checks (backend env example, docs). Then request authorization for a development AWS environment after reviewing the cost list. DNS records stay un-created per your instruction. Keep Terraform plan/apply blocked until a dev environment is authorized.
 
 ### Proposed DNS records (awaiting authorization; not created)
 | Purpose | Type | Name | Value |
