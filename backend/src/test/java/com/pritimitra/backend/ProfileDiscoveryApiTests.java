@@ -280,6 +280,41 @@ class ProfileDiscoveryApiTests {
 	}
 
 	@Test
+	void viewerAgeWindowBoundariesAreInclusiveAtBothEnds() throws Exception {
+		String candidate = newActiveUser("Boundary", "DATING");
+		makeDiscoverable(candidate);
+		String viewer = newActiveUser("Edge", "DATING");
+		makeDiscoverable(viewer);
+		int candidateAge = java.time.Period.between(LocalDate.parse(ADULT_DOB), LocalDate.now()).getYears();
+
+		assertWindowIncludesCandidate(viewer, candidateAge, candidateAge, true, candidate);
+		assertWindowIncludesCandidate(viewer, candidateAge + 1, candidateAge + 5, false, candidate);
+		assertWindowIncludesCandidate(viewer, 18, candidateAge - 1, false, candidate);
+	}
+
+	private void assertWindowIncludesCandidate(String viewer, int minAge, int maxAge, boolean expected, String candidate)
+			throws Exception {
+		mvc.perform(put("/api/v1/profile").with(auth(viewer)).contentType("application/json")
+				.content("""
+						{"displayName":"Edge","goals":["DATING"],"discoveryInterestedIn":["MEN"],
+						 "discoveryMinAge":%d,"discoveryMaxAge":%d,"discoveryMaxDistanceKm":10}
+						""".formatted(minAge, maxAge)))
+				.andExpect(status().isOk());
+		assertEquals(expected, discoverableIds(viewer, 50).contains(publicIdOf(candidate)),
+				"candidate inclusion for window " + minAge + ".." + maxAge);
+	}
+
+	@Test
+	void discoveryRejectsWellFormedBase64CursorThatIsNotAPublicId() throws Exception {
+		String viewer = newActiveUser("CursorCheck", "DATING");
+		String cursor = java.util.Base64.getUrlEncoder().withoutPadding()
+				.encodeToString("not-a-uuid".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		mvc.perform(get("/api/v1/discovery?cursor=" + cursor).with(auth(viewer)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_CURSOR"));
+	}
+
+	@Test
 	void paginationReturnsEveryCandidateExactlyOnceWithOpaqueCursors() throws Exception {
 		String first = newActiveUser("P1", "MEET_PEOPLE");
 		String second = newActiveUser("P2", "MEET_PEOPLE");

@@ -1,6 +1,15 @@
 # Plan-only checks for the private profile photo bucket. Mocked provider, no AWS credentials or resources.
 
-mock_provider "aws" {}
+mock_provider "aws" {
+  override_resource {
+    target          = aws_s3_bucket.profile_photos
+    override_during = plan
+    values = {
+      arn    = "arn:aws:s3:::pritimitra-profile-photos-dev-123456789012"
+      bucket = "pritimitra-profile-photos-dev-123456789012"
+    }
+  }
+}
 
 variables {
   environment           = "dev"
@@ -32,5 +41,28 @@ run "profile_photo_bucket_is_private_and_encrypted" {
   assert {
     condition     = contains([for r in aws_s3_bucket_ownership_controls.profile_photos.rule : r.object_ownership], "BucketOwnerEnforced")
     error_message = "Profile photo bucket must enforce bucket-owner object ownership (ACLs disabled)."
+  }
+}
+
+run "profile_photo_bucket_denies_insecure_transport_only" {
+  command = plan
+
+  assert {
+    condition     = length([for s in jsondecode(aws_s3_bucket_policy.profile_photos.policy).Statement : s if s.Effect == "Deny" && s.Condition.Bool["aws:SecureTransport"] == "false"]) == 1
+    error_message = "Profile photo bucket policy must deny requests that are not TLS."
+  }
+
+  assert {
+    condition     = length([for s in jsondecode(aws_s3_bucket_policy.profile_photos.policy).Statement : s if s.Effect == "Allow"]) == 0
+    error_message = "Profile photo bucket policy must not grant any public Allow statement."
+  }
+}
+
+run "profile_photo_bucket_lifecycle_aborts_stale_uploads" {
+  command = plan
+
+  assert {
+    condition     = aws_s3_bucket_lifecycle_configuration.profile_photos.rule[0].abort_incomplete_multipart_upload[0].days_after_initiation == 1
+    error_message = "Incomplete multipart photo uploads must be aborted after one day."
   }
 }
