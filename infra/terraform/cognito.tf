@@ -43,6 +43,8 @@ resource "aws_cognito_user_pool" "main" {
 }
 
 # Mobile (Flutter/Amplify): SRP keeps the password off the wire. Amplify performs the SRP exchange on-device.
+# ALLOW_REFRESH_TOKEN_AUTH is intentionally absent: it is incompatible with refresh token rotation. Refreshes use
+# GetTokensFromRefreshToken (amplify_auth_cognito_dart >= 0.11.14). tests/cognito_auth_flows.tftest.hcl guards this.
 resource "aws_cognito_user_pool_client" "app" {
   name         = "${var.project_name}-${var.environment}-app"
   user_pool_id = aws_cognito_user_pool.main.id
@@ -52,7 +54,6 @@ resource "aws_cognito_user_pool_client" "app" {
 
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
   prevent_user_existence_errors = "ENABLED"
@@ -80,8 +81,9 @@ resource "aws_cognito_user_pool_client" "app" {
 
 # Web (Next.js server-side BFF): the server receives the password from the browser over TLS and forwards it to
 # Cognito with USER_PASSWORD_AUTH. SRP would not hide the password from this server, and running SRP in the browser
-# would hand tokens to client-side code, which the HttpOnly cookie design forbids. This client is therefore limited to
-# password and refresh flows, so the password flow is not enabled on the mobile client.
+# would hand tokens to client-side code, which the HttpOnly cookie design forbids. This client enables only the password
+# flow, so the password flow is not enabled on the mobile client. ALLOW_REFRESH_TOKEN_AUTH is intentionally absent
+# because rotation requires GetTokensFromRefreshToken, which the web BFF calls directly.
 resource "aws_cognito_user_pool_client" "web" {
   name         = "${var.project_name}-${var.environment}-web"
   user_pool_id = aws_cognito_user_pool.main.id
@@ -90,7 +92,6 @@ resource "aws_cognito_user_pool_client" "web" {
 
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
   prevent_user_existence_errors = "ENABLED"

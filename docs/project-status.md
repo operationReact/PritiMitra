@@ -48,18 +48,19 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Web sign-in uses `USER_PASSWORD_AUTH` on the new web app client. The Terraform client previously enabled only SRP, so the web sign-in would have failed. Mobile keeps SRP. See `docs/architecture.md`.
 - Web refresh uses `GetTokensFromRefreshToken`, not `REFRESH_TOKEN_AUTH`. Each rotated refresh token is persisted, including when the backend call times out or is unreachable. A refresh rejection does not clear cookies on the proxy path, so a concurrent request cannot be overwritten with stale tokens. A missing refresh token in the response is treated as an error.
 - Rotation grace period: `cognito_refresh_retry_grace_seconds` (default 10, range 0–60). Whether live Cognito returns a different refresh token on grace-period reuse is not yet verified.
+- `ALLOW_REFRESH_TOKEN_AUTH` removed from both app clients. Rotation is incompatible with it. Mobile keeps `ALLOW_USER_SRP_AUTH` only, and web keeps `ALLOW_USER_PASSWORD_AUTH` only. Regression guards: `infra/terraform/tests/cognito_auth_flows.tftest.hcl` (`terraform test`) and `mobile/test/features/auth/data/amplify_auth_flow_test.dart`. Amplify `amplify_auth_cognito_dart` 0.11.26 is pinned, which supports rotation (0.11.14+). Live refresh against a development user pool has not been tested and needs authorization.
 - Known limitation: a Server Component (`/account`) cannot refresh, so an expired access token shows a sign-in message until the user refreshes through a route handler.
 - Tests added with mocked AWS SDK responses: `cognito.test.ts` (sign-in flow, refresh request, missing refresh token, rejection), `session.test.ts` (refresh outcome, cookie flags, clearing), `backend-proxy.test.ts` (rotated tokens kept on timeout and unreachable backend, no refresh for Server Components).
 - Selfie or identity verification is not implemented. No profile is labelled verified.
 
-### Verification status (actual runs)
-- Backend: `mvnw.cmd -B verify` passed, 27 tests (run after the Cognito fixes; backend code unchanged).
+### Verification status (actual runs, refresh-flow fix)
+- Backend: `mvnw.cmd -B verify` BUILD SUCCESS, 27 tests, 0 failures.
 - Web: `vitest run` 60 tests passed (8 files); `tsc --noEmit` exit 0; `eslint` exit 0; `next build` exit 0.
-- Flutter: `flutter analyze` no issues; `flutter test` 44 tests passed.
-- Terraform: `fmt -check -recursive` exit 0; `init -backend=false` exit 0; `validate` valid. No plan or apply.
-- No live Cognito test has run.
+- Flutter: `flutter analyze` no issues; `flutter test` 46 tests passed (2 new flow-contract tests).
+- Terraform 1.16.6: `fmt -check -recursive` exit 0; `init -backend=false` exit 0; `validate` valid; `terraform test` 3 passed (mocked provider, plan only; no apply, no credentials).
+- No live Cognito test has run. A development user pool test has not been authorized or run.
 
-### Verification status (earlier run)
+### Verification status (earlier run before the refresh-flow fix)
 - Backend: `mvnw.cmd -B verify` passed with 27 tests (AuthSchemaMigrationTests 7, BackendApplicationTests 1, IneligibleAccountPurgeTests 2, LegalPropertiesTests 4, OnboardingApiTests 13). Testcontainers PostgreSQL 17.
 - Web: `npm test` 42 tests passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` exit 0. No live Cognito test has run.
 - Mobile: `flutter analyze` no issues; `flutter test` 44 tests passed; `flutter build apk --debug` succeeded. iOS was not built. No live Cognito test has run.
