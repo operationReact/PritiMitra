@@ -9,6 +9,7 @@ import com.pritimitra.backend.identity.EmailVerificationChecker;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ConsentItem;
 import com.pritimitra.backend.onboarding.OnboardingDtos.MeResponse;
 import com.pritimitra.backend.onboarding.OnboardingDtos.OnboardingStateResponse;
+import com.pritimitra.backend.onboarding.OnboardingDtos.OwnProfileResponse;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileRequest;
 import com.pritimitra.backend.onboarding.OnboardingDtos.ProfileResponse;
 import java.time.Clock;
@@ -69,6 +70,49 @@ class OnboardingService {
 				.map(p -> new ProfileResponse(p.getDisplayName(), p.getBio(), p.getProfilePrompt(),
 						new HashSet<>(p.getGoals())))
 				.orElseGet(() -> new ProfileResponse(null, null, null, Set.of()));
+	}
+
+	/** The owner's full profile. Available only to ACTIVE accounts; the default-deny filter enforces this first. */
+	@Transactional
+	OwnProfileResponse getOwnProfile(String cognitoSub, String accessToken) {
+		AppUser user = requireActive(cognitoSub, accessToken);
+		return toOwnProfile(profiles.findById(user.getId())
+				.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "PROFILE_INCOMPLETE",
+						"Complete onboarding to view your profile")));
+	}
+
+	/**
+	 * Updates the editable profile of an ACTIVE account. Activation rules still apply on every edit, so a display
+	 * name and at least one connection goal must remain set.
+	 */
+	@Transactional
+	OwnProfileResponse updateOwnProfile(String cognitoSub, String accessToken, ProfileRequest request) {
+		AppUser user = requireActive(cognitoSub, accessToken);
+		if (request.displayName() == null || request.displayName().isBlank()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "DISPLAY_NAME_REQUIRED", "A display name is required");
+		}
+		if (request.goals() == null || request.goals().isEmpty()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "CONNECTION_GOAL_REQUIRED",
+					"Choose at least one connection goal");
+		}
+		updateProfile(cognitoSub, accessToken, request);
+		return toOwnProfile(profiles.findById(user.getId()).orElseThrow());
+	}
+
+	/** Opt in or out of discovery. Opting in requires a completed profile; opting out is always allowed. */
+	@Transactional
+	OwnProfileResponse setDiscoverable(String cognitoSub, String accessToken, boolean discoverable) {
+		AppUser user = requireActive(cognitoSub, accessToken);
+		OnboardingProfile profile = profiles.findById(user.getId())
+				.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "PROFILE_INCOMPLETE",
+						"Complete onboarding before changing discovery visibility"));
+		if (discoverable && !profile.isCompleted()) {
+			throw new ApiException(HttpStatus.CONFLICT, "PROFILE_INCOMPLETE",
+					"Complete onboarding before changing discovery visibility");
+		}
+		profile.setDiscoveryVisible(discoverable, Instant.now(clock));
+		profiles.save(profile);
+		return toOwnProfile(profile);
 	}
 
 	/**
@@ -274,6 +318,28 @@ class OnboardingService {
 					"Verify your email address to continue");
 		}
 		return user;
+	}
+
+	private AppUser requireActive(String cognitoSub, String accessToken) {
+		AppUser user = requireAccessible(cognitoSub, accessToken);
+		if (user.getStatus() == AccountStatus.INELIGIBLE) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "AGE_INELIGIBLE",
+					"PritiMitra is available to adults aged 18 or older");
+		}
+		if (user.getStatus() != AccountStatus.ACTIVE) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "ONBOARDING_INCOMPLETE",
+					"Complete onboarding to continue");
+		}
+		return user;
+	}
+
+	private static OwnProfileResponse toOwnProfile(OnboardingProfile p) {
+		return new OwnProfileResponse(p.getPublicId(), p.getDisplayName(), p.getBio(), p.getProfilePrompt(),
+				p.getGenderIdentity(), p.isGenderIdentityVisible(), p.getPronouns(), p.isPronounsVisible(),
+				p.getSexualOrientation(), p.isSexualOrientationVisible(), new LinkedHashSet<>(p.getGoals()),
+				new LinkedHashSet<>(p.getInterests()), new LinkedHashSet<>(p.getDiscoveryInterests()),
+				p.getDiscoveryMinAge(), p.getDiscoveryMaxAge(), p.getDiscoveryMaxDistanceKm(),
+				p.isDiscoveryVisible());
 	}
 
 	private void requireAgeVerified(AppUser user) {

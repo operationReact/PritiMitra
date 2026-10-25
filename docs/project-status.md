@@ -93,3 +93,24 @@ Complete the remaining Phase 3 automated checks (backend env example, docs). The
 | Custom MAIL FROM SPF | TXT | `bounce.mail.pritimitra.com` | `v=spf1 include:amazonses.com -all` |
 
 Set `manage_dns_records = true` and `route53_zone_id` only after authorization. Run `terraform output ses_dns_records_required` to get the exact token values.
+
+## Phase 4 — Profiles, privacy and discovery (in progress, branch `feature/phase-4-profiles-discovery`)
+
+### Implemented (backend, Checkpoint A)
+- Migration `V4__profiles_discovery_likes.sql` (additive): `onboarding_profile.discovery_visible` (default false), `onboarding_profile.public_id` (unique, random UUID), a partial index for discoverable profiles, and the `profile_like` table with a no-self-like check.
+- Owner-only profile API at `/api/v1/profile`: `GET`, `PUT` (explicit request allow-list), and `PUT /discoverability`. Opting in requires a completed profile (409 `PROFILE_INCOMPLETE`).
+- Discovery API at `/api/v1/discovery`: keyset cursor pagination over `public_id` (opaque base64url cursor), size 1–50, optional goal filter. Viewer must be `ACTIVE` (403 otherwise). Candidates must be `ACTIVE`, completed, discoverable, not self, and not already liked. Age window comes from the viewer's preferences and is computed in SQL, so date of birth is never returned.
+- Idempotent directional likes at `/api/v1/likes/{publicId}` (`PUT` like, `DELETE` unlike). Self-like returns 400 `CANNOT_LIKE_SELF`. Private and unknown targets return the same 404 `PROFILE_NOT_FOUND`.
+- Discovery cards expose only display name, bio, prompt, identity fields, goals, and interests.
+
+### Verification (actual runs)
+- `backend\mvnw.cmd verify` (Docker Desktop running): exit 0, 40 tests in 6 classes, 0 failures. `ProfileDiscoveryApiTests` 13/13. `OnboardingApiTests` 13/13. Migrations V1–V4 applied on a fresh Testcontainers PostgreSQL.
+
+### Not done (outstanding for Phase 4)
+- Profile photos: upload, validation, management, private delivery. Storage design not yet decided. No code yet.
+- Flutter profile view/edit, privacy toggle, discovery list, and like/unlike UI. Not started.
+- Responsive web profile and discovery pages. Not started.
+- Terraform changes for Phase 4: none. Nothing has been applied.
+- Upgrade-path test for V4 on existing data (the `public_id` backfill) has not been written. Only fresh-database migration is covered.
+- Distance and interest matching are not enforced in discovery. Candidate gender identity is free text, and there is no location data.
+- Live Cognito and S3 behaviour is untested in this environment.

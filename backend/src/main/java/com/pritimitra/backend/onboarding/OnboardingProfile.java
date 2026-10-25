@@ -26,6 +26,14 @@ class OnboardingProfile {
 	@Column(name = "user_id", nullable = false, updatable = false)
 	private UUID userId;
 
+	/** Database-generated opaque identifier used in discovery and likes instead of the internal account id. */
+	@Column(name = "public_id", nullable = false, insertable = false, updatable = false)
+	private UUID publicId;
+
+	/** Private by default. Only the owner can change this, and only after onboarding is complete. */
+	@Column(name = "discovery_visible", nullable = false)
+	private boolean discoveryVisible;
+
 	@Column(name = "display_name", length = 60)
 	private String displayName;
 
@@ -136,6 +144,23 @@ class OnboardingProfile {
 		this.updatedAt = now;
 	}
 
+	void setDiscoveryVisible(boolean visible, Instant now) {
+		this.discoveryVisible = visible;
+		this.updatedAt = now;
+	}
+
+	boolean isDiscoveryVisible() {
+		return discoveryVisible;
+	}
+
+	boolean isCompleted() {
+		return completedAt != null;
+	}
+
+	UUID getPublicId() {
+		return publicId;
+	}
+
 	UUID getUserId() {
 		return userId;
 	}
@@ -158,6 +183,30 @@ class OnboardingProfile {
 
 	Integer getDiscoveryMinAge() {
 		return discoveryMinAge;
+	}
+
+	String getGenderIdentity() {
+		return genderIdentity;
+	}
+
+	boolean isGenderIdentityVisible() {
+		return genderIdentityVisible;
+	}
+
+	String getPronouns() {
+		return pronouns;
+	}
+
+	boolean isPronounsVisible() {
+		return pronounsVisible;
+	}
+
+	String getSexualOrientation() {
+		return sexualOrientation;
+	}
+
+	boolean isSexualOrientationVisible() {
+		return sexualOrientationVisible;
 	}
 
 	Integer getDiscoveryMaxAge() {
