@@ -1,25 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/brand_header.dart';
 import '../../../core/motion/app_motion.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Responsive introduction using the PritiMitra landing visual language.
-/// Real registration and login will be connected in the authentication phase.
+/// Sign-up and sign-in CTAs open the authentication flow.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
-
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Account setup is the next implementation phase.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +49,7 @@ class WelcomeScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            onPressed: () => _showComingSoon(context),
+                            onPressed: () => context.push(AppRoutes.signUp),
                             child: const Text('Join free'),
                           ),
                         ),
@@ -122,12 +113,12 @@ class WelcomeScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           FilledButton(
-                            onPressed: () => _showComingSoon(context),
+                            onPressed: () => context.push(AppRoutes.signUp),
                             child: const Text('Get started — it’s free'),
                           ),
                           const SizedBox(height: 4),
                           TextButton(
-                            onPressed: () => _showComingSoon(context),
+                            onPressed: () => context.push(AppRoutes.signIn),
                             child: const Text(
                               'Already have an account? Log in',
                             ),

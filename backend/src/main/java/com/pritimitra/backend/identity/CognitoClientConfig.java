@@ -1,0 +1,16 @@
+package com.pritimitra.backend.identity;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+
+@Configuration
+class CognitoClientConfig {
+
+	@Bean(destroyMethod = "close")
+	CognitoIdentityProviderClient cognitoIdentityProviderClient(@Value("${pritimitra.auth.cognito.region}") String region) {
+		return CognitoIdentityProviderClient.builder().region(Region.of(region)).build();
+	}
+}

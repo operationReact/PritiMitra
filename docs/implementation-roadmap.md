@@ -14,7 +14,10 @@ Status: in progress.
 Acceptance criteria: CI green; welcome UI responsive and accessible; primary controls have clear behavior; motion respects reduced-motion preferences; authentication and app-store links are not described as implemented while they remain unwired.
 
 ## Phase 3 — Authentication and onboarding
-Registration/login/recovery on Flutter and web, API contracts, secure token storage, backend authentication, input validation, age eligibility, and privacy-first defaults.
+Status: implementation committed and pushed on `feature/phase-3-auth-onboarding` (local commit `9c59a12`, pushed to origin). Not production-ready; no PR merged.
+- Done: Cognito resource-server backend, explicit account states, enum interested-in, consent versioning with draft/approved guard, ineligible retention purge, Next.js secure session boundary, Flutter Amplify integration, Terraform skeleton (validated only).
+- Outstanding: production legal versions and https policy URLs; SES DNS records (not created; awaiting authorization); live Cognito/SES integration tests in a development pool; ECS, ALB, RDS, and runtime secrets in Terraform (follow-up slice); `AdminDeleteUser` with `sub` verified in a dev pool; iOS build; Figma visual parity for auth screens.
+- Costs to approve before provisioning: Cognito (per monthly active user), SES, ECS Fargate, ALB, RDS PostgreSQL, NAT gateway, CloudWatch, Route 53 hosted zone (existing zone used).
 
 ## Phase 4 — Profiles and discovery
 Profile editing, photos, privacy settings, discovery pagination, filters, and likes.
