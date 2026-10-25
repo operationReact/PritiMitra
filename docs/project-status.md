@@ -1,40 +1,28 @@
 # Project Status
 
-## Phase 1: Engineering foundation
+## Phase 1 — Engineering foundation
+Status: complete and merged to `main` via PR #1.
 
-### Verified locally (as recorded by the implementation session)
+GitHub Actions for Flutter, Web, and Backend all passed on the Phase 1 head. Local build results were recorded by the implementation session and were not independently rerun during this Phase 2 task.
 
-| Check | Command | Result |
-|---|---|---|
-| Flutter format | `dart format --output=none --set-exit-if-changed lib test` | Pass (0 changed) |
-| Flutter analyze | `flutter analyze` | No issues |
-| Flutter tests | `flutter test` | 3 passed |
-| Flutter web build | `flutter build web` | Pass |
-| Android debug APK | `flutter build apk --debug` | Built debug APK |
-| Backend build and tests | `mvn verify` | Pass (Testcontainers, PostgreSQL 17) |
-| Backend runtime | `mvn spring-boot:run` against Compose DB | `/actuator/health` UP; Flyway V1 applied |
-| Web checks | `npm run lint`, `npm run build` | Pass |
-| Web runtime | `npm run start -- -p 3100` | HTTP 200, placeholder page served |
-| GitHub Actions (baseline PR head) | Flutter, Web, Backend workflows on `b50ff44` | All three succeeded before review fixes |
+## Phase 2 — Design system and rich UI
+Status: implementation in progress on `feature/phase-2-rich-design-system`.
 
-These local results were recorded by the implementation session and were not independently rerun during this review.
+### Implemented in this change
+- Expanded Flutter semantic colors and added shared spacing/radius tokens.
+- Extended the Material theme for buttons, cards, inputs, and typography.
+- Centralized entrance/route motion tokens and reduced-motion behavior.
+- Replaced the bare Flutter welcome placeholder with a branded introduction, illustrated hero, CTAs, and consent-first trust card.
+- Replaced the Next.js placeholder with a responsive landing page based on the Figma desktop and mobile landing frames.
+- Added interactive mobile navigation, profile pass/like preview, and clear coming-soon feedback for app-store/auth actions.
+- Reused the existing local brand images in the web public assets.
 
-### Not yet verified
+### Verification status
+- Figma desktop/mobile screenshots were inspected as visual references.
+- Branch CI must pass before merge.
+- Rendered implementation screenshots have not yet been compared against Figma, so pixel-perfect visual parity is not claimed.
+- Authentication and app-store download links are not wired; CTAs clearly show that they are not ready.
+- The hero phone/profile artwork is composed from CSS shapes and Flutter shapes; it is illustrative UI, not a live profile or a downloaded Figma vector asset.
 
-- iOS build: not run; requires macOS/Xcode.
-- Visual comparison of rendered mobile and web screens against approved Figma frames: not done.
-- Product API behavior: no product endpoints are implemented yet.
-- Load testing, deployment hardening, production secret management, and recovery procedures: not yet in scope for Phase 1.
-
-### Environment
-
-- JDK 21 and Maven 3.9.16 were used by the implementation session.
-- Docker Desktop is required for Compose and Testcontainers.
-- Android build environment was configured; iOS cannot be built on Windows.
-
-### Open items
-
-- Five-tab bottom navigation (Discover, Likes, Blind Date, Community, Chats) is not yet reflected in the Figma component, which currently shows three tabs.
-- Premium design and motion implementation belongs to the next phase.
-- Before production launch, review the selected Spring Boot release and its ongoing support/security-update policy.
-- Next phase: establish the design-token and motion system, compare rendered screens against Figma, and add golden/visual regression tests.
+### Next task
+Run branch CI to completion, fix build/test issues, then inspect rendered screenshots at mobile, tablet, and desktop breakpoints against Figma and tune geometry before marking Phase 2 complete.

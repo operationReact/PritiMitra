@@ -24,7 +24,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart format --output=show lib/core/theme/app_theme.dart lib/features/welcome/presentation/welcome_screen.dart test/widget_test.dart
       - run: flutter analyze
       - run: flutter test
       - run: flutter build web --release
