@@ -36,13 +36,23 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
 
   let result;
   try {
-    result = await callBackend({ method, segments: path, read: await cookies(), body, canRefresh: true });
+    result = await callBackend({
+      method,
+      segments: path,
+      search: new URL(request.url).searchParams,
+      read: await cookies(),
+      body,
+      canRefresh: true,
+    });
   } catch {
     return authErrorResponse(503, "auth_unavailable");
   }
 
   if (result.kind === "not_allowed") {
     return authErrorResponse(404, "not_found");
+  }
+  if (result.kind === "invalid_query") {
+    return authErrorResponse(400, "invalid_request");
   }
   if (result.kind === "unauthenticated") {
     return authErrorResponse(401, "session_expired");

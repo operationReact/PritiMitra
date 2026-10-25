@@ -1,5 +1,5 @@
 import { readBackendOrigin } from "./config";
-import { resolveBackendPath, type BackendMethod } from "./proxy-policy";
+import { resolveBackendPath, resolveBackendQuery, type BackendMethod } from "./proxy-policy";
 import { resolveFreshSession, type CookieReader, type RefreshedTokens } from "./session";
 
 const BACKEND_TIMEOUT_MS = 10_000;
@@ -7,6 +7,8 @@ const BACKEND_TIMEOUT_MS = 10_000;
 export type BackendCallInput = {
   method: string;
   segments: readonly string[];
+  /** Query parameters from the browser request; validated against the per-path allow-list before forwarding. */
+  search?: URLSearchParams;
   read: CookieReader;
   /** Raw request body; only forwarded for PUT and POST. */
   body?: string;
@@ -24,6 +26,7 @@ type BackendAttempt =
 /** `refreshed` is set whenever a rotation happened, even if the backend call then failed. */
 export type BackendCallResult =
   | { kind: "not_allowed" }
+  | { kind: "invalid_query" }
   | { kind: "unauthenticated" }
   | (BackendAttempt & { refreshed?: RefreshedTokens });
 
@@ -37,6 +40,11 @@ export async function callBackend(input: BackendCallInput): Promise<BackendCallR
   if (!path) {
     return { kind: "not_allowed" };
   }
+  const query = resolveBackendQuery(path, input.search ?? new URLSearchParams());
+  if (query === null) {
+    return { kind: "invalid_query" };
+  }
+  const target = query ? `${path}?${query}` : path;
   const origin = readBackendOrigin();
 
   const session = await resolveFreshSession(input.read, { allowRefresh: input.canRefresh });
@@ -45,21 +53,21 @@ export async function callBackend(input: BackendCallInput): Promise<BackendCallR
   }
 
   let current = session;
-  let attempt = await send(origin, path, method, current.accessToken, input.body);
+  let attempt = await send(origin, target, method, current.accessToken, input.body);
   if (attempt.kind === "response" && attempt.status === 401 && !current.refreshed) {
     const renewed = await resolveFreshSession(input.read, { force: true, allowRefresh: input.canRefresh });
     if (!renewed) {
       return { kind: "unauthenticated" };
     }
     current = renewed;
-    attempt = await send(origin, path, method, current.accessToken, input.body);
+    attempt = await send(origin, target, method, current.accessToken, input.body);
   }
   return { ...attempt, refreshed: current.refreshed };
 }
 
 async function send(
   origin: string,
-  path: string,
+  target: string,
   method: BackendMethod,
   accessToken: string,
   body: string | undefined,
@@ -74,7 +82,7 @@ async function send(
   }
 
   try {
-    const upstream = await fetch(new URL(path, origin), {
+    const upstream = await fetch(new URL(target, origin), {
       method,
       headers,
       body: forwardBody ? body : undefined,

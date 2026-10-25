@@ -48,3 +48,33 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   return isLikeTarget ? path : null;
 }
 
+const GOAL_VALUES = ["DATING", "FRIENDSHIP", "COMMUNITY", "MEET_PEOPLE", "OPEN_TO_CONNECTION"] as const;
+
+/** Per-path query parameter rules. Any parameter not listed here is rejected. */
+const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = {
+  "/api/v1/discovery": {
+    cursor: /^[A-Za-z0-9_-]{1,128}$/,
+    size: /^(?:[1-9]|[1-4][0-9]|50)$/,
+    goal: new RegExp(`^(?:${GOAL_VALUES.join("|")})$`),
+  },
+};
+
+/**
+ * Validates the query string for an allow-listed path and returns a normalized query (without "?"), or null
+ * when any key is unknown, repeated or malformed. Paths without rules accept no query parameters at all.
+ */
+export function resolveBackendQuery(path: string, search: URLSearchParams): string | null {
+  const rules = QUERY_RULES[path] ?? {};
+  const normalized = new URLSearchParams();
+  const seen = new Set<string>();
+  for (const [key, value] of search) {
+    const rule = Object.prototype.hasOwnProperty.call(rules, key) ? rules[key] : undefined;
+    if (!rule || seen.has(key) || !rule.test(value)) {
+      return null;
+    }
+    seen.add(key);
+    normalized.set(key, value);
+  }
+  return normalized.toString();
+}
+

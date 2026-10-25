@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveBackendPath } from "./proxy-policy";
+import { resolveBackendPath, resolveBackendQuery } from "./proxy-policy";
 
 describe("resolveBackendPath", () => {
   it("maps allow-listed method and path pairs", () => {
@@ -56,5 +56,60 @@ describe("resolveBackendPath", () => {
   it("denies empty and overly long segment lists", () => {
     expect(resolveBackendPath("GET", [])).toBeNull();
     expect(resolveBackendPath("GET", Array.from({ length: 9 }, () => "v1"))).toBeNull();
+  });
+});
+
+describe("resolveBackendQuery", () => {
+  const DISCOVERY = "/api/v1/discovery";
+
+  function query(path: string, raw: string): string | null {
+    return resolveBackendQuery(path, new URLSearchParams(raw));
+  }
+
+  it("accepts an empty query on every path", () => {
+    expect(query(DISCOVERY, "")).toBe("");
+    expect(query("/api/v1/me", "")).toBe("");
+  });
+
+  it("forwards allow-listed discovery parameters in normalized form", () => {
+    expect(query(DISCOVERY, "size=20&cursor=AbC_-9")).toBe("size=20&cursor=AbC_-9");
+    expect(query(DISCOVERY, "goal=DATING")).toBe("goal=DATING");
+  });
+
+  it("accepts size boundaries 1 and 50 and rejects 0 and 51", () => {
+    expect(query(DISCOVERY, "size=1")).toBe("size=1");
+    expect(query(DISCOVERY, "size=50")).toBe("size=50");
+    expect(query(DISCOVERY, "size=0")).toBeNull();
+    expect(query(DISCOVERY, "size=51")).toBeNull();
+  });
+
+  it("rejects malformed numbers and cursors", () => {
+    expect(query(DISCOVERY, "size=2.5")).toBeNull();
+    expect(query(DISCOVERY, "size=-1")).toBeNull();
+    expect(query(DISCOVERY, "size=20abc")).toBeNull();
+    expect(query(DISCOVERY, "cursor=../../admin")).toBeNull();
+    expect(query(DISCOVERY, "cursor=a%2Fb")).toBeNull();
+    expect(query(DISCOVERY, `cursor=${"a".repeat(129)}`)).toBeNull();
+  });
+
+  it("rejects unknown goal values", () => {
+    expect(query(DISCOVERY, "goal=dating")).toBeNull();
+    expect(query(DISCOVERY, "goal=ADMIN")).toBeNull();
+  });
+
+  it("rejects unknown and repeated parameters", () => {
+    expect(query(DISCOVERY, "admin=1")).toBeNull();
+    expect(query(DISCOVERY, "size=10&size=20")).toBeNull();
+    expect(query(DISCOVERY, "size=10&cursor=abc&unexpected=x")).toBeNull();
+  });
+
+  it("does not treat inherited object keys as allowed parameters", () => {
+    expect(query(DISCOVERY, "constructor=x")).toBeNull();
+    expect(query(DISCOVERY, "__proto__=x")).toBeNull();
+  });
+
+  it("rejects any query on paths without rules", () => {
+    expect(query("/api/v1/me", "size=20")).toBeNull();
+    expect(query("/api/v1/likes/pub-abc123", "cursor=abc")).toBeNull();
   });
 });

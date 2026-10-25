@@ -4,8 +4,8 @@ import { useState } from "react";
 import { parseLikeStatus } from "@/lib/profile/models";
 
 /**
- * Likes are idempotent on the server. The discovery response carries no viewer-like flag, so the button
- * starts in the "Like" state; re-liking an already-liked profile is harmless.
+ * The discovery feed excludes profiles the viewer already liked, so a card shown here is unliked on the server.
+ * Success responses carry the authoritative liked flag; the local state changes only after the server confirms it.
  */
 export function LikeButton({ publicId, displayName }: { publicId: string; displayName: string }) {
   const [liked, setLiked] = useState(false);
@@ -26,7 +26,9 @@ export function LikeButton({ publicId, displayName }: { publicId: string; displa
         setError(
           response.status === 401
             ? "Your session has expired. Please sign in again."
-            : "We could not update your like. Please try again.",
+            : response.status === 404
+              ? "This profile is no longer available."
+              : "We could not update your like. Please try again.",
         );
         return;
       }

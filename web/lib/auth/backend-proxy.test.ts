@@ -106,6 +106,52 @@ describe("callBackend", () => {
     });
   });
 
+  it("forwards only validated discovery query parameters upstream", async () => {
+    cognito.refreshTokens.mockResolvedValueOnce({ accessToken: "access-2", refreshToken: "refresh-2" });
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('{"items":[],"nextCursor":null}', { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await callBackend({
+      method: "GET",
+      segments: ["v1", "discovery"],
+      search: new URLSearchParams("size=20&cursor=AbC-123"),
+      read: reader({ [REFRESH_COOKIE_NAME]: "refresh-1" }),
+      canRefresh: true,
+    });
+
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(String(url)).toBe("http://backend.test/api/v1/discovery?size=20&cursor=AbC-123");
+    expect(result).toMatchObject({ kind: "response", status: 200 });
+  });
+
+  it("rejects disallowed query parameters before any session lookup or upstream call", async () => {
+    const result = await callBackend({
+      method: "GET",
+      segments: ["v1", "discovery"],
+      search: new URLSearchParams("size=500"),
+      read: reader({ [REFRESH_COOKIE_NAME]: "refresh-1" }),
+      canRefresh: true,
+    });
+
+    expect(result).toEqual({ kind: "invalid_query" });
+    expect(cognito.refreshTokens).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not forward query parameters on paths that accept none", async () => {
+    const result = await callBackend({
+      method: "GET",
+      segments: ["v1", "me"],
+      search: new URLSearchParams("redirect=https://evil.test"),
+      read: reader({ [REFRESH_COOKIE_NAME]: "refresh-1" }),
+      canRefresh: true,
+    });
+
+    expect(result).toEqual({ kind: "invalid_query" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("returns unauthenticated when Cognito rejects the refresh token", async () => {
     cognito.refreshTokens.mockRejectedValueOnce(namedError("NotAuthorizedException"));
 
