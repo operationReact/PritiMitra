@@ -15,11 +15,12 @@
 | Database | Docker Compose `postgres:17` | Healthy on port 5432 |
 | Web lint and build | `npm run lint`, `npm run build` | Pass |
 | Web runtime | `npm run start -- -p 3100` | HTTP 200, placeholder page served |
+| Android debug APK | `flutter build apk --debug` | Built `app-debug.apk` |
+| GitHub Actions | Flutter, Web, and Backend CI on `829fd12` | All three succeeded |
 
 ### Not yet verified
 
-- GitHub Actions workflows (`flutter-ci.yml`, `web-ci.yml`, `backend-ci.yml`): not run on GitHub. Nothing has been pushed.
-- Android APK build (`flutter build apk`): not run in this phase.
+- iOS build: not run.
 - iOS build: requires macOS. Not available here.
 - Visual comparison of the rendered app against Figma: not done.
 
