@@ -7,14 +7,14 @@
 mock_provider "aws" {}
 
 variables {
-  environment         = "dev"
-  project_name        = "pritimitra"
-  root_domain         = "example.com"
-  mail_subdomain      = "mail"
-  mail_from_subdomain = "bounce"
-  mail_from_address   = "no-reply@mail.example.com"
-  route53_zone_id     = "Z0000000000000000"
-  manage_dns_records  = false
+  environment           = "dev"
+  project_name          = "pritimitra"
+  root_domain           = "example.com"
+  mail_subdomain        = "mail"
+  mail_from_subdomain   = "bounce"
+  mail_from_address     = "no-reply@mail.example.com"
+  route53_zone_id       = "Z0000000000000000"
+  manage_dns_records    = false
   cognito_callback_urls = ["https://localhost:3000/api/auth/callback"]
   cognito_logout_urls   = ["https://localhost:3000/"]
   github_repository     = "operationReact/PritiMitra"
