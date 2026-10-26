@@ -39,6 +39,8 @@ dependencies:
   amplify_auth_cognito: ^2.16.0
   http: ^1.6.0
   amplify_flutter: ^2.16.0
+  image_picker: ^1.2.4
+  http_parser: ^4.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

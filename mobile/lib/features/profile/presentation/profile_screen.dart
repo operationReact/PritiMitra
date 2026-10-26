@@ -9,6 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/brand_header.dart';
 import '../application/profile_controller.dart';
 import '../domain/own_profile.dart';
+import 'profile_photos_section.dart';
 
 /// Connection goal wire values and labels, matching the backend `ConnectionGoal` enum.
 const profileGoalLabels = <String, String>{
@@ -182,6 +183,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: AppSpacing.md),
             _Notice(message: _message!, isError: _messageIsError),
           ],
+          const SizedBox(height: AppSpacing.lg),
+          const ProfilePhotosSection(),
           const SizedBox(height: AppSpacing.lg),
           TextFormField(
             controller: _displayName,
