@@ -147,3 +147,46 @@ describe("resolveBackendQuery", () => {
     expect(query("/api/v1/likes/pub-abc123", "cursor=abc")).toBeNull();
   });
 });
+
+describe("messaging and safety routes", () => {
+  it("allow-lists exact list, read-all and report routes", () => {
+    expect(resolveBackendPath("GET", ["v1", "matches"])).toBe("/api/v1/matches");
+    expect(resolveBackendPath("GET", ["v1", "conversations"])).toBe("/api/v1/conversations");
+    expect(resolveBackendPath("GET", ["v1", "notifications"])).toBe("/api/v1/notifications");
+    expect(resolveBackendPath("PUT", ["v1", "notifications", "read-all"])).toBe("/api/v1/notifications/read-all");
+    expect(resolveBackendPath("POST", ["v1", "reports"])).toBe("/api/v1/reports");
+    expect(resolveBackendPath("POST", ["v1", "matches"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "conversations"])).toBeNull();
+  });
+
+  it("allow-lists message history, send and read cursor for a conversation id only", () => {
+    const id = "conv-abc123";
+    expect(resolveBackendPath("GET", ["v1", "conversations", id, "messages"])).toBe(`/api/v1/conversations/${id}/messages`);
+    expect(resolveBackendPath("POST", ["v1", "conversations", id, "messages"])).toBe(`/api/v1/conversations/${id}/messages`);
+    expect(resolveBackendPath("PUT", ["v1", "conversations", id, "read"])).toBe(`/api/v1/conversations/${id}/read`);
+    expect(resolveBackendPath("DELETE", ["v1", "conversations", id, "messages"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "conversations", "bad.id", "messages"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "conversations", id, "messages", "extra"])).toBeNull();
+  });
+
+  it("allow-lists match unmatch, notification read and block by public id", () => {
+    expect(resolveBackendPath("DELETE", ["v1", "matches", "m-123"])).toBe("/api/v1/matches/m-123");
+    expect(resolveBackendPath("GET", ["v1", "matches", "m-123"])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "notifications", "n-123", "read"])).toBe("/api/v1/notifications/n-123/read");
+    expect(resolveBackendPath("GET", ["v1", "notifications", "n-123", "read"])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "blocks", "p-123"])).toBe("/api/v1/blocks/p-123");
+    expect(resolveBackendPath("DELETE", ["v1", "blocks", "p-123"])).toBe("/api/v1/blocks/p-123");
+    expect(resolveBackendPath("GET", ["v1", "blocks", "p-123"])).toBeNull();
+  });
+
+  it("accepts only cursor and size on paged lists and rejects unknown or repeated parameters", () => {
+    const paged = (path: string, search: string) => resolveBackendQuery(path, new URLSearchParams(search));
+    expect(paged("/api/v1/matches", "cursor=abc_-1&size=20")).toBe("cursor=abc_-1&size=20");
+    expect(paged("/api/v1/conversations", "size=51")).toBeNull();
+    expect(paged("/api/v1/notifications", "unread=true")).toBeNull();
+    expect(paged("/api/v1/conversations/conv-1/messages", "cursor=abc&size=30")).toBe("cursor=abc&size=30");
+    expect(paged("/api/v1/conversations/conv-1/messages", "cursor=a&cursor=b")).toBeNull();
+    expect(paged("/api/v1/conversations/conv-1/messages", "cursor=a;drop")).toBeNull();
+  });
+});
+
