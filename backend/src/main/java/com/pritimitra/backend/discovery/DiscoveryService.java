@@ -1,6 +1,7 @@
 package com.pritimitra.backend.discovery;
 
 import com.pritimitra.backend.common.ApiException;
+import com.pritimitra.backend.common.PublicIdCursor;
 import com.pritimitra.backend.discovery.DiscoveryDtos.DiscoveryCard;
 import com.pritimitra.backend.discovery.DiscoveryDtos.DiscoveryPage;
 import com.pritimitra.backend.onboarding.ConnectionGoal;
@@ -127,20 +128,12 @@ class DiscoveryService {
 		return array == null ? List.of() : List.of((String[]) array.getArray());
 	}
 
-	static UUID decodeCursor(String cursor) {
-		if (cursor == null || cursor.isBlank()) {
-			return null;
-		}
-		try {
-			String decoded = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-			return UUID.fromString(decoded);
-		} catch (IllegalArgumentException ex) {
-			throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Pagination cursor is invalid");
-		}
+	public static UUID decodeCursor(String cursor) {
+		return PublicIdCursor.decode(cursor);
 	}
 
-	static String encodeCursor(UUID publicId) {
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(publicId.toString().getBytes(StandardCharsets.UTF_8));
+	public static String encodeCursor(UUID publicId) {
+		return PublicIdCursor.encode(publicId);
 	}
 
 	private record Viewer(UUID id, String status, int minAge, int maxAge) {

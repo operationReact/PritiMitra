@@ -62,6 +62,7 @@ class MatchService {
 					""")
 					.param("id", existing.get().id())
 					.update();
+			ensureConversation(pair);
 			return new MatchOutcome(MatchState.CREATED, existing.get().publicId());
 		}
 		UUID publicId = jdbc.sql("""
@@ -73,7 +74,20 @@ class MatchService {
 				.param("high", pair.high())
 				.query(UUID.class)
 				.single();
+		ensureConversation(pair);
 		return new MatchOutcome(MatchState.CREATED, publicId);
+	}
+
+	/** One conversation per match. Idempotent, so reactivated matches reuse their existing conversation. */
+	private void ensureConversation(Pair pair) {
+		jdbc.sql("""
+				INSERT INTO conversation (match_id)
+				SELECT id FROM profile_match WHERE user_low_id = :low AND user_high_id = :high
+				ON CONFLICT (match_id) DO NOTHING
+				""")
+				.param("low", pair.low())
+				.param("high", pair.high())
+				.update();
 	}
 
 	@Transactional(readOnly = true)
