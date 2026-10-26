@@ -2,15 +2,18 @@ package com.pritimitra.backend.messaging;
 
 import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.common.PublicIdCursor;
+import com.pritimitra.backend.messaging.ConversationDtos.CatchUpPage;
 import com.pritimitra.backend.messaging.ConversationDtos.ConversationPage;
 import com.pritimitra.backend.messaging.ConversationDtos.ConversationSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.MessagePage;
 import com.pritimitra.backend.messaging.ConversationDtos.MessageSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.ReadState;
 import com.pritimitra.backend.notifications.NotificationService;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Participant-only conversations and durable text messages. Sender identity always comes from the authenticated
- * subject, never from the request. Sends lock the match row so they serialize against unmatch.
+ * subject, never from the request. Sends lock the conversation row, then share-lock the match, so they serialize
+ * per conversation and against unmatch.
  */
 @Service
 public class ConversationService {
@@ -31,6 +35,29 @@ public class ConversationService {
 	private static final int DEFAULT_PAGE_SIZE = 20;
 	private static final int MAX_PAGE_SIZE = 50;
 
+	/**
+	 * Viewer-scoped conversation rows with the last message and unread count. Callers append their own predicates,
+	 * ordering, and limit. The other participant's public profile id is included so the client can block them.
+	 */
+	private static final String SUMMARY_SQL = """
+			SELECT c.public_id AS conversation_id, m.public_id AS match_id, m.status,
+			       op.public_id AS other_profile_id,
+			       lm.body AS last_body, lm.created_at AS last_at,
+			       (SELECT COUNT(*) FROM conversation_message cm
+			         WHERE cm.conversation_id = c.id AND cm.sender_id <> :viewerId
+			           AND cm.seq > COALESCE((SELECT rs.last_read_seq FROM conversation_read_state rs
+			                                   WHERE rs.conversation_id = c.id AND rs.user_id = :viewerId), 0)) AS unread
+			FROM conversation c
+			JOIN profile_match m ON m.id = c.match_id
+			JOIN app_user ou ON ou.id = CASE WHEN m.user_low_id = :viewerId THEN m.user_high_id ELSE m.user_low_id END
+			LEFT JOIN onboarding_profile op ON op.user_id = ou.id
+			LEFT JOIN LATERAL (
+			    SELECT body, created_at FROM conversation_message
+			    WHERE conversation_id = c.id ORDER BY seq DESC LIMIT 1
+			) lm ON TRUE
+			WHERE (m.user_low_id = :viewerId OR m.user_high_id = :viewerId)
+			""";
+
 	private final JdbcClient jdbc;
 	private final NotificationService notifications;
 
@@ -39,48 +66,68 @@ public class ConversationService {
 		this.notifications = notifications;
 	}
 
+	/**
+	 * Conversations ordered by most recent message, newest first. Conversations without messages sort last. Ties on the
+	 * activity time break on the conversation public id. The cursor carries both sort keys so pages never overlap.
+	 */
 	@Transactional(readOnly = true)
 	ConversationPage list(String cognitoSub, String cursor, int size) {
 		int pageSize = pageSize(size);
 		UUID viewerId = activeViewerId(cognitoSub);
-		UUID after = PublicIdCursor.decode(cursor);
-		List<ConversationSummary> rows = jdbc.sql("""
-				SELECT c.public_id AS conversation_id, m.public_id AS match_id, m.status,
-				       lm.body AS last_body, lm.created_at AS last_at,
-				       (SELECT COUNT(*) FROM conversation_message cm
-				         WHERE cm.conversation_id = c.id AND cm.sender_id <> :viewerId
-				           AND cm.seq > COALESCE((SELECT rs.last_read_seq FROM conversation_read_state rs
-				                                   WHERE rs.conversation_id = c.id AND rs.user_id = :viewerId), 0)) AS unread
-				FROM conversation c
-				JOIN profile_match m ON m.id = c.match_id
-				LEFT JOIN LATERAL (
-				    SELECT body, created_at FROM conversation_message
-				    WHERE conversation_id = c.id ORDER BY seq DESC LIMIT 1
-				) lm ON TRUE
-				WHERE (m.user_low_id = :viewerId OR m.user_high_id = :viewerId)
-				  AND (CAST(:cursor AS uuid) IS NULL OR c.public_id > CAST(:cursor AS uuid))
-				ORDER BY c.public_id
+		ActivityCursor after = ActivityCursor.decode(cursor);
+		List<ConversationSummary> rows = jdbc.sql(SUMMARY_SQL + """
+				  AND (:hasCursor = FALSE
+				       OR (CAST(:afterAt AS timestamptz) IS NOT NULL
+				           AND (lm.created_at < CAST(:afterAt AS timestamptz)
+				                OR (lm.created_at = CAST(:afterAt AS timestamptz)
+				                    AND c.public_id > CAST(:afterId AS uuid))
+				                OR lm.created_at IS NULL))
+				       OR (CAST(:afterAt AS timestamptz) IS NULL AND lm.created_at IS NULL
+				           AND c.public_id > CAST(:afterId AS uuid)))
+				ORDER BY lm.created_at DESC NULLS LAST, c.public_id
 				LIMIT :limit
 				""")
 				.param("viewerId", viewerId)
-				.param("cursor", after)
+				.param("hasCursor", after != null)
+				.param("afterAt", after == null ? null : after.lastAt())
+				.param("afterId", after == null ? null : after.conversationId())
 				.param("limit", pageSize + 1)
 				.query((rs, n) -> conversationSummary(rs))
 				.list();
 		boolean hasMore = rows.size() > pageSize;
 		List<ConversationSummary> items = hasMore ? rows.subList(0, pageSize) : rows;
-		String next = hasMore ? PublicIdCursor.encode(items.get(items.size() - 1).conversationId()) : null;
+		String next = null;
+		if (hasMore) {
+			ConversationSummary last = items.get(items.size() - 1);
+			next = ActivityCursor.encode(last.lastMessageAt(), last.conversationId());
+		}
 		return new ConversationPage(List.copyOf(items), next);
 	}
 
-	/** Newest-first history page. The cursor is the public id of the oldest message already received. */
+	/** One conversation visible to the viewer, including its block target and status. */
+	@Transactional(readOnly = true)
+	ConversationSummary get(String cognitoSub, UUID conversationPublicId) {
+		UUID viewerId = activeViewerId(cognitoSub);
+		return jdbc.sql(SUMMARY_SQL + " AND c.public_id = :pid")
+				.param("viewerId", viewerId)
+				.param("pid", conversationPublicId)
+				.query((rs, n) -> conversationSummary(rs))
+				.optional()
+				.orElseThrow(ConversationService::conversationNotFound);
+	}
+
+	/**
+	 * Newest-first history page. The cursor is the public id of the oldest message already received. The first page
+	 * also returns {@code latestCursor}, the position of the newest message it contains; catch-up starts from there.
+	 */
 	@Transactional(readOnly = true)
 	MessagePage messages(String cognitoSub, UUID conversationPublicId, String cursor, int size) {
 		int pageSize = pageSize(size);
 		UUID viewerId = activeViewerId(cognitoSub);
 		UUID conversationId = participantConversationId(viewerId, conversationPublicId);
+		boolean firstPage = cursor == null || cursor.isBlank();
 		long before = Long.MAX_VALUE;
-		if (cursor != null && !cursor.isBlank()) {
+		if (!firstPage) {
 			UUID messagePublicId = PublicIdCursor.decode(cursor);
 			before = jdbc.sql("SELECT seq FROM conversation_message WHERE public_id = :pid AND conversation_id = :cid")
 					.param("pid", messagePublicId)
@@ -90,7 +137,7 @@ public class ConversationService {
 					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR",
 							"Pagination cursor is invalid"));
 		}
-		List<MessageSummary> rows = jdbc.sql("""
+		List<SeqRow> rows = jdbc.sql("""
 				SELECT cm.public_id, cm.client_message_id, cm.body, cm.created_at, cm.sender_id, cm.seq
 				FROM conversation_message cm
 				WHERE cm.conversation_id = :cid AND cm.seq < :before
@@ -100,12 +147,46 @@ public class ConversationService {
 				.param("cid", conversationId)
 				.param("before", before)
 				.param("limit", pageSize + 1)
-				.query((rs, n) -> messageSummary(rs, viewerId))
+				.query((rs, n) -> new SeqRow(messageSummary(rs, viewerId), rs.getLong("seq")))
 				.list();
 		boolean hasMore = rows.size() > pageSize;
-		List<MessageSummary> items = hasMore ? rows.subList(0, pageSize) : rows;
-		String next = hasMore ? PublicIdCursor.encode(items.get(items.size() - 1).messageId()) : null;
-		return new MessagePage(List.copyOf(items), next);
+		List<SeqRow> page = hasMore ? rows.subList(0, pageSize) : rows;
+		String next = hasMore ? PublicIdCursor.encode(page.get(page.size() - 1).message().messageId()) : null;
+		String latest = null;
+		if (firstPage) {
+			long newestSeq = page.isEmpty() ? 0L : page.get(0).seq();
+			latest = SeqCursor.encode(conversationPublicId, newestSeq);
+		}
+		return new MessagePage(page.stream().map(SeqRow::message).toList(), next, latest);
+	}
+
+	/**
+	 * Messages newer than the cursor, oldest first, bounded by the page size. Because sends are serialized per
+	 * conversation and commit in sequence order, every committed message with a higher seq than the cursor is returned
+	 * exactly once across successive calls.
+	 */
+	@Transactional(readOnly = true)
+	CatchUpPage newer(String cognitoSub, UUID conversationPublicId, String cursor, int size) {
+		int pageSize = pageSize(size);
+		UUID viewerId = activeViewerId(cognitoSub);
+		UUID conversationId = participantConversationId(viewerId, conversationPublicId);
+		SeqCursor after = SeqCursor.decode(cursor, conversationPublicId);
+		List<SeqRow> rows = jdbc.sql("""
+				SELECT cm.public_id, cm.client_message_id, cm.body, cm.created_at, cm.sender_id, cm.seq
+				FROM conversation_message cm
+				WHERE cm.conversation_id = :cid AND cm.seq > :after
+				ORDER BY cm.seq ASC
+				LIMIT :limit
+				""")
+				.param("cid", conversationId)
+				.param("after", after.seq())
+				.param("limit", pageSize + 1)
+				.query((rs, n) -> new SeqRow(messageSummary(rs, viewerId), rs.getLong("seq")))
+				.list();
+		boolean hasMore = rows.size() > pageSize;
+		List<SeqRow> page = hasMore ? rows.subList(0, pageSize) : rows;
+		String next = page.isEmpty() ? cursor : SeqCursor.encode(conversationPublicId, page.get(page.size() - 1).seq());
+		return new CatchUpPage(page.stream().map(SeqRow::message).toList(), next, hasMore);
 	}
 
 	/**
@@ -132,8 +213,8 @@ public class ConversationService {
 		}
 
 		Optional<MessageSummary> inserted = jdbc.sql("""
-				INSERT INTO conversation_message (conversation_id, sender_id, client_message_id, body)
-				VALUES (:cid, :sender, :clientId, :body)
+				INSERT INTO conversation_message (conversation_id, sender_id, client_message_id, body, created_at)
+				VALUES (:cid, :sender, :clientId, :body, clock_timestamp())
 				ON CONFLICT (conversation_id, sender_id, client_message_id) DO NOTHING
 				RETURNING public_id, client_message_id, body, created_at
 				""")
@@ -196,8 +277,11 @@ public class ConversationService {
 	}
 
 	/**
-	 * Locks the match row so an unmatch cannot commit between the status check and the insert. The block check runs
-	 * under the same lock, so a block that commits first is always observed.
+	 * Serializes sends within one conversation. The conversation row is locked before the message sequence is
+	 * allocated and the lock is held until commit, so commit order equals seq order and a reader that has seen seq N
+	 * can rely on every lower seq being committed. The match row is share-locked so an unmatch cannot commit between
+	 * the status check and the insert. The lock order is conversation, then match. Unmatch and block never wait on the
+	 * conversation row, so they cannot form a cycle with sends. Other conversations are unaffected.
 	 */
 	private ConversationLock lockForSend(UUID viewerId, UUID conversationPublicId) {
 		return jdbc.sql("""
@@ -211,6 +295,7 @@ public class ConversationService {
 				JOIN profile_match m ON m.id = c.match_id
 				WHERE c.public_id = :pid
 				  AND (m.user_low_id = :viewerId OR m.user_high_id = :viewerId)
+				FOR UPDATE OF c
 				FOR SHARE OF m
 				""")
 				.param("pid", conversationPublicId)
@@ -306,6 +391,7 @@ public class ConversationService {
 		return new ConversationSummary(
 				rs.getObject("conversation_id", UUID.class),
 				rs.getObject("match_id", UUID.class),
+				rs.getObject("other_profile_id", UUID.class),
 				rs.getString("status"),
 				body == null ? null : preview(body),
 				lastAt,
@@ -319,6 +405,85 @@ public class ConversationService {
 				rs.getString("body"),
 				viewerId.equals(rs.getObject("sender_id", UUID.class)),
 				rs.getTimestamp("created_at").toInstant());
+	}
+
+	/** A message with its ordering position, kept internal so the public DTO never exposes sequence numbers. */
+	private record SeqRow(MessageSummary message, long seq) {
+	}
+
+	/**
+	 * Opaque, conversation-scoped catch-up cursor. It encodes the conversation public id and the last seq delivered,
+	 * so a cursor issued for one conversation is rejected when presented for another.
+	 */
+	private record SeqCursor(UUID conversationPublicId, long seq) {
+
+		static String encode(UUID conversationPublicId, long seq) {
+			String raw = conversationPublicId + ":" + seq;
+			return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+		}
+
+		static SeqCursor decode(String cursor, UUID expectedConversationPublicId) {
+			if (cursor == null || cursor.isBlank()) {
+				throw invalidCursor();
+			}
+			try {
+				String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+				int sep = raw.indexOf(':');
+				if (sep < 0) {
+					throw invalidCursor();
+				}
+				UUID id = UUID.fromString(raw.substring(0, sep));
+				long seq = Long.parseLong(raw.substring(sep + 1));
+				if (!id.equals(expectedConversationPublicId) || seq < 0) {
+					throw invalidCursor();
+				}
+				return new SeqCursor(id, seq);
+			} catch (IllegalArgumentException e) {
+				throw invalidCursor();
+			}
+		}
+
+		private static ApiException invalidCursor() {
+			return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Pagination cursor is invalid");
+		}
+	}
+
+	/**
+	 * Keyset cursor for the conversation list. It carries the activity time and the public id of the last row so
+	 * ties and empty conversations page deterministically. A null {@code lastAt} marks the empty-conversation region.
+	 */
+	private record ActivityCursor(String lastAt, UUID conversationId) {
+
+		static String encode(Instant lastAt, UUID conversationId) {
+			String raw = (lastAt == null ? "" : lastAt.toString()) + "|" + conversationId;
+			return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+		}
+
+		/** Returns null when no cursor was supplied. */
+		static ActivityCursor decode(String cursor) {
+			if (cursor == null || cursor.isBlank()) {
+				return null;
+			}
+			try {
+				String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+				int sep = raw.lastIndexOf('|');
+				if (sep < 0) {
+					throw invalidCursor();
+				}
+				String at = raw.substring(0, sep);
+				UUID id = UUID.fromString(raw.substring(sep + 1));
+				if (!at.isEmpty()) {
+					Instant.parse(at);
+				}
+				return new ActivityCursor(at.isEmpty() ? null : at, id);
+			} catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+				throw invalidCursor();
+			}
+		}
+
+		private static ApiException invalidCursor() {
+			return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Pagination cursor is invalid");
+		}
 	}
 
 	private static String preview(String body) {

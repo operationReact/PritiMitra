@@ -251,6 +251,42 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<void> _confirmBlock() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block this person?'),
+        content: const Text(
+          'This closes the conversation and prevents messages, likes and matches between you. You will not be able to message each other.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    final outcome = await ref
+        .read(conversationControllerProvider(widget.conversationId).notifier)
+        .blockParticipant();
+    if (!mounted) {
+      return;
+    }
+    if (outcome == BlockOutcome.failed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('We could not block. Try again.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = conversationControllerProvider(widget.conversationId);
@@ -271,7 +307,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversation')),
+      appBar: AppBar(
+        title: const Text('Conversation'),
+        actions: [
+          if (!state.closed && state.otherProfilePublicId != null)
+            PopupMenuButton<String>(
+              enabled: !state.blocking,
+              onSelected: (value) {
+                if (value == 'block') {
+                  _confirmBlock();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'block', child: Text('Block')),
+              ],
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(child: _buildList(state, notifier)),

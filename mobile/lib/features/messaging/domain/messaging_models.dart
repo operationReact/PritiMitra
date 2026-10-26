@@ -125,8 +125,13 @@ class ChatMessage {
   final String createdAt;
 }
 
+/// Newest-first history page. [latestCursor] is set on the first page only and seeds catch-up.
 class MessagePage {
-  const MessagePage({required this.items, required this.nextCursor});
+  const MessagePage({
+    required this.items,
+    required this.nextCursor,
+    this.latestCursor,
+  });
 
   factory MessagePage.fromJson(Map<String, dynamic> json) {
     final raw = json['items'];
@@ -138,11 +143,60 @@ class MessagePage {
                 .toList(growable: false)
           : const <ChatMessage>[],
       nextCursor: json['nextCursor'] as String?,
+      latestCursor: json['latestCursor'] as String?,
     );
   }
 
   final List<ChatMessage> items;
   final String? nextCursor;
+  final String? latestCursor;
+}
+
+/// Ascending messages newer than the requested cursor. [cursor] is the only position the client may advance to.
+class CatchUpPage {
+  const CatchUpPage({
+    required this.items,
+    required this.cursor,
+    required this.hasMore,
+  });
+
+  factory CatchUpPage.fromJson(Map<String, dynamic> json) {
+    final raw = json['items'];
+    return CatchUpPage(
+      items: raw is List
+          ? raw
+                .whereType<Map<String, dynamic>>()
+                .map(ChatMessage.fromJson)
+                .toList(growable: false)
+          : const <ChatMessage>[],
+      cursor: json['cursor'] as String? ?? '',
+      hasMore: json['hasMore'] as bool? ?? false,
+    );
+  }
+
+  final List<ChatMessage> items;
+  final String cursor;
+  final bool hasMore;
+}
+
+class ConversationDetail {
+  const ConversationDetail({
+    required this.conversationId,
+    required this.status,
+    required this.otherProfilePublicId,
+  });
+
+  factory ConversationDetail.fromJson(Map<String, dynamic> json) {
+    return ConversationDetail(
+      conversationId: json['conversationId'] as String,
+      status: json['status'] as String? ?? '',
+      otherProfilePublicId: json['otherProfilePublicId'] as String?,
+    );
+  }
+
+  final String conversationId;
+  final String status;
+  final String? otherProfilePublicId;
 }
 
 enum NotificationKind { match, newMessage, unknown }

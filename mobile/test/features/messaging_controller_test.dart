@@ -21,8 +21,19 @@ class _FakeMessagingApi extends MessagingApi {
   _FakeMessagingApi() : super(client: null);
 
   final pageResults = <ApiResult<MessagePage>>[];
+  final catchUpResults = <ApiResult<CatchUpPage>>[];
+  final catchUpCursors = <String>[];
   final sendResults = <ApiResult<ChatMessage>>[];
   final sentClientIds = <String>[];
+  final blockedProfileIds = <String>[];
+  ApiResult<ConversationDetail> detailResult = const ApiSuccess(
+    ConversationDetail(
+      conversationId: _conversationId,
+      status: 'ACTIVE',
+      otherProfilePublicId: 'profile-2',
+    ),
+  );
+  ApiResult<void> blockResult = const ApiSuccess(null);
   int _clientIdCounter = 0;
 
   @override
@@ -38,6 +49,29 @@ class _FakeMessagingApi extends MessagingApi {
       return const ApiSuccess(MessagePage(items: [], nextCursor: null));
     }
     return pageResults.removeAt(0);
+  }
+
+  @override
+  Future<ApiResult<CatchUpPage>> fetchNewerMessages(
+    String conversationId, {
+    required String cursor,
+    int size = 50,
+  }) async {
+    catchUpCursors.add(cursor);
+    return catchUpResults.removeAt(0);
+  }
+
+  @override
+  Future<ApiResult<ConversationDetail>> fetchConversation(
+    String conversationId,
+  ) async {
+    return detailResult;
+  }
+
+  @override
+  Future<ApiResult<void>> block(String profilePublicId) async {
+    blockedProfileIds.add(profilePublicId);
+    return blockResult;
   }
 
   @override
@@ -174,5 +208,153 @@ void main() {
 
     await controller().send('second attempt');
     expect(api.sentClientIds.length, 1);
+  });
+
+  test(
+    'catch-up drains every page in order and advances the cursor per page',
+    () async {
+      api.pageResults.add(
+        ApiSuccess(
+          MessagePage(
+            items: [_message('m1')],
+            nextCursor: null,
+            latestCursor: 'c0',
+          ),
+        ),
+      );
+      api.catchUpResults.addAll([
+        ApiSuccess(
+          CatchUpPage(
+            items: [_message('m2'), _message('m3')],
+            cursor: 'c3',
+            hasMore: true,
+          ),
+        ),
+        ApiSuccess(
+          CatchUpPage(items: [_message('m4')], cursor: 'c4', hasMore: false),
+        ),
+      ]);
+      open();
+      await pumpEventQueue();
+
+      await controller().pollNewest();
+
+      expect(state().messages.map((m) => m.messageId), [
+        'm4',
+        'm3',
+        'm2',
+        'm1',
+      ]);
+      expect(api.catchUpCursors, ['c0', 'c3']);
+    },
+  );
+
+  test(
+    'a failed poll keeps the cursor so the next poll loses nothing',
+    () async {
+      api.pageResults.add(
+        ApiSuccess(
+          MessagePage(
+            items: [_message('m1')],
+            nextCursor: null,
+            latestCursor: 'c0',
+          ),
+        ),
+      );
+      api.catchUpResults.addAll([
+        const ApiUnavailable<CatchUpPage>(statusCode: 503),
+        ApiSuccess(
+          CatchUpPage(items: [_message('m2')], cursor: 'c2', hasMore: false),
+        ),
+      ]);
+      open();
+      await pumpEventQueue();
+
+      await controller().pollNewest();
+      expect(state().messages.map((m) => m.messageId), ['m1']);
+
+      await controller().pollNewest();
+
+      expect(state().messages.map((m) => m.messageId), ['m2', 'm1']);
+      expect(api.catchUpCursors, ['c0', 'c0']);
+    },
+  );
+
+  test('overlapping catch-up pages never duplicate a message', () async {
+    api.pageResults.add(
+      ApiSuccess(
+        MessagePage(
+          items: [_message('m1')],
+          nextCursor: null,
+          latestCursor: 'c1',
+        ),
+      ),
+    );
+    api.catchUpResults.add(
+      ApiSuccess(
+        CatchUpPage(
+          items: [_message('m1'), _message('m2')],
+          cursor: 'c2',
+          hasMore: false,
+        ),
+      ),
+    );
+    open();
+    await pumpEventQueue();
+
+    await controller().pollNewest();
+
+    expect(state().messages.map((m) => m.messageId), ['m2', 'm1']);
+  });
+
+  test(
+    'blocking closes the conversation only after the server confirms',
+    () async {
+      api.pageResults.add(
+        const ApiSuccess(MessagePage(items: [], nextCursor: null)),
+      );
+      open();
+      await pumpEventQueue();
+
+      final outcome = await controller().blockParticipant();
+
+      expect(outcome, BlockOutcome.blocked);
+      expect(api.blockedProfileIds, ['profile-2']);
+      expect(state().closed, isTrue);
+      expect(state().blocking, isFalse);
+    },
+  );
+
+  test('a failed block leaves the conversation open', () async {
+    api.blockResult = const ApiUnavailable<void>(statusCode: 503);
+    api.pageResults.add(
+      const ApiSuccess(MessagePage(items: [], nextCursor: null)),
+    );
+    open();
+    await pumpEventQueue();
+
+    final outcome = await controller().blockParticipant();
+
+    expect(outcome, BlockOutcome.failed);
+    expect(state().closed, isFalse);
+    expect(state().blocking, isFalse);
+  });
+
+  test('an unmatched conversation detail is shown as closed', () async {
+    api.detailResult = const ApiSuccess(
+      ConversationDetail(
+        conversationId: _conversationId,
+        status: 'UNMATCHED',
+        otherProfilePublicId: null,
+      ),
+    );
+    api.pageResults.add(
+      const ApiSuccess(MessagePage(items: [], nextCursor: null)),
+    );
+    open();
+    await pumpEventQueue();
+
+    expect(state().closed, isTrue);
+    expect(await controller().blockParticipant(), BlockOutcome.failed);
   });
 }

@@ -52,6 +52,8 @@ class ConversationState {
     this.loadError,
     this.sessionExpired = false,
     this.closed = false,
+    this.otherProfilePublicId,
+    this.blocking = false,
   });
 
   final bool loading;
@@ -69,6 +71,10 @@ class ConversationState {
   /// True once the server reports the conversation as closed (unmatched or blocked).
   final bool closed;
 
+  /// The other participant's public profile ID, used only for the block request.
+  final String? otherProfilePublicId;
+  final bool blocking;
+
   ConversationState copyWith({
     bool? loading,
     bool? loadingMore,
@@ -80,6 +86,8 @@ class ConversationState {
     bool clearError = false,
     bool? sessionExpired,
     bool? closed,
+    String? otherProfilePublicId,
+    bool? blocking,
   }) {
     return ConversationState(
       loading: loading ?? this.loading,
@@ -90,9 +98,13 @@ class ConversationState {
       loadError: clearError ? null : (loadError ?? this.loadError),
       sessionExpired: sessionExpired ?? this.sessionExpired,
       closed: closed ?? this.closed,
+      otherProfilePublicId: otherProfilePublicId ?? this.otherProfilePublicId,
+      blocking: blocking ?? this.blocking,
     );
   }
 }
+
+enum BlockOutcome { blocked, failed, sessionExpired }
 
 /// Owns one open conversation. Confirmed messages come only from server responses.
 final conversationControllerProvider = NotifierProvider.autoDispose
@@ -113,6 +125,9 @@ class ConversationController extends Notifier<ConversationState> {
   bool _polling = false;
   bool _disposed = false;
 
+  /// Position of the last accepted catch-up response. Only advanced after the server accepts a page.
+  String? _catchUpCursor;
+
   @override
   ConversationState build() {
     ref.onDispose(() {
@@ -120,6 +135,7 @@ class ConversationController extends Notifier<ConversationState> {
       _pollTimer?.cancel();
     });
     Future<void>.microtask(load);
+    Future<void>.microtask(_loadDetail);
     _schedulePoll();
     return const ConversationState();
   }
@@ -136,32 +152,75 @@ class ConversationController extends Notifier<ConversationState> {
     });
   }
 
-  /// Fetches the newest page and adds only unseen messages. Failures back off up to 60 seconds.
+  /// Fetches every committed message after the last accepted cursor, oldest first, draining all pages.
+  /// The cursor advances only after a successful response, so a failed poll retries from the same position.
   Future<void> pollNewest() async {
     if (_polling || _disposed) {
       return;
     }
     _polling = true;
     try {
-      final result = await _api.fetchMessages(conversationId);
-      if (_disposed) {
+      final cursor = _catchUpCursor;
+      if (cursor == null) {
+        await _seedCursor();
         return;
       }
-      switch (result) {
-        case ApiSuccess(:final data):
-          final known = state.messages.map((m) => m.messageId).toSet();
-          final fresh = data.items.where((m) => !known.contains(m.messageId));
-          _pollDelay = _pollInterval;
-          if (fresh.isNotEmpty) {
-            state = state.copyWith(messages: [...fresh, ...state.messages]);
-          }
-        case ApiUnauthorized():
-          state = state.copyWith(sessionExpired: true);
-        case ApiForbidden() || ApiUnavailable():
-          _pollDelay = _nextBackoff(_pollDelay);
+      var current = cursor;
+      var hasMore = true;
+      while (hasMore && !_disposed) {
+        final result = await _api.fetchNewerMessages(
+          conversationId,
+          cursor: current,
+        );
+        if (_disposed) {
+          return;
+        }
+        switch (result) {
+          case ApiSuccess(:final data):
+            _pollDelay = _pollInterval;
+            _prependUnseen(data.items.reversed);
+            current = data.cursor.isEmpty ? current : data.cursor;
+            _catchUpCursor = current;
+            hasMore = data.hasMore && data.cursor != cursor;
+          case ApiUnauthorized():
+            state = state.copyWith(sessionExpired: true);
+            return;
+          case ApiForbidden() || ApiUnavailable():
+            _pollDelay = _nextBackoff(_pollDelay);
+            return;
+        }
       }
     } finally {
       _polling = false;
+    }
+  }
+
+  /// Used while no cursor exists yet (an empty conversation at load time). The newest page seeds the cursor.
+  Future<void> _seedCursor() async {
+    final result = await _api.fetchMessages(conversationId);
+    if (_disposed) {
+      return;
+    }
+    switch (result) {
+      case ApiSuccess(:final data):
+        _pollDelay = _pollInterval;
+        _prependUnseen(data.items);
+        _catchUpCursor = data.latestCursor ?? _catchUpCursor;
+      case ApiUnauthorized():
+        state = state.copyWith(sessionExpired: true);
+      case ApiForbidden() || ApiUnavailable():
+        _pollDelay = _nextBackoff(_pollDelay);
+    }
+  }
+
+  /// Adds messages not yet shown. [newestFirst] must be ordered newest first, matching [ConversationState.messages].
+  void _prependUnseen(Iterable<ChatMessage> newestFirst) {
+    final known = state.messages.map((m) => m.messageId).toSet();
+    final fresh = newestFirst
+        .where((m) => known.add(m.messageId))
+        .toList(growable: false);
+    if (fresh.isNotEmpty) {
+      state = state.copyWith(messages: [...fresh, ...state.messages]);
     }
   }
 
@@ -170,9 +229,25 @@ class ConversationController extends Notifier<ConversationState> {
     return doubled > _maxPollBackoff ? _maxPollBackoff : doubled;
   }
 
+  Future<void> _loadDetail() async {
+    final result = await _api.fetchConversation(conversationId);
+    if (_disposed) {
+      return;
+    }
+    if (result case ApiSuccess(:final data)) {
+      state = state.copyWith(
+        otherProfilePublicId: data.otherProfilePublicId,
+        closed: state.closed || data.status != 'ACTIVE',
+      );
+    }
+  }
+
   Future<void> load() async {
     state = state.copyWith(loading: true, clearError: true);
     final result = await _api.fetchMessages(conversationId);
+    if (_disposed) {
+      return;
+    }
     switch (result) {
       case ApiSuccess(:final data):
         state = state.copyWith(
@@ -181,6 +256,7 @@ class ConversationController extends Notifier<ConversationState> {
           nextCursor: data.nextCursor,
           clearCursor: data.nextCursor == null,
         );
+        _catchUpCursor = data.latestCursor ?? _catchUpCursor;
         _markNewestRead();
       case ApiUnauthorized():
         state = state.copyWith(loading: false, sessionExpired: true);
@@ -303,6 +379,31 @@ class ConversationController extends Notifier<ConversationState> {
           o.clientMessageId == next.clientMessageId ? next : o,
       ],
     );
+  }
+
+  /// Blocks the other participant after confirmation. The conversation closes only when the server confirms.
+  Future<BlockOutcome> blockParticipant() async {
+    final profileId = state.otherProfilePublicId;
+    if (profileId == null || state.blocking || state.closed) {
+      return BlockOutcome.failed;
+    }
+    state = state.copyWith(blocking: true);
+    final result = await _api.block(profileId);
+    if (_disposed) {
+      return BlockOutcome.failed;
+    }
+    switch (result) {
+      case ApiSuccess():
+        state = state.copyWith(blocking: false, closed: true);
+        ref.invalidate(conversationsProvider);
+        return BlockOutcome.blocked;
+      case ApiUnauthorized():
+        state = state.copyWith(blocking: false, sessionExpired: true);
+        return BlockOutcome.sessionExpired;
+      case ApiForbidden() || ApiUnavailable():
+        state = state.copyWith(blocking: false);
+        return BlockOutcome.failed;
+    }
   }
 
   void _markNewestRead() {

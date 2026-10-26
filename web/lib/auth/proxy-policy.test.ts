@@ -169,6 +169,23 @@ describe("messaging and safety routes", () => {
     expect(resolveBackendPath("GET", ["v1", "conversations", id, "messages", "extra"])).toBeNull();
   });
 
+  it("allow-lists conversation detail by id and catch-up for messages newer than a cursor", () => {
+    const id = "conv-abc123";
+    expect(resolveBackendPath("GET", ["v1", "conversations", id])).toBe(`/api/v1/conversations/${id}`);
+    expect(resolveBackendPath("PUT", ["v1", "conversations", id])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "conversations", id, "messages", "newer"])).toBe(
+      `/api/v1/conversations/${id}/messages/newer`,
+    );
+    expect(resolveBackendPath("POST", ["v1", "conversations", id, "messages", "newer"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "conversations", "bad.id", "messages", "newer"])).toBeNull();
+    const query = (search: string) =>
+      resolveBackendQuery(`/api/v1/conversations/${id}/messages/newer`, new URLSearchParams(search));
+    expect(query("cursor=abc_-1&size=50")).toBe("cursor=abc_-1&size=50");
+    expect(query("cursor=abc&size=0")).toBeNull();
+    expect(query("cursor=abc&size=51")).toBeNull();
+    expect(query("unread=true")).toBeNull();
+  });
+
   it("allow-lists match unmatch, notification read and block by public id", () => {
     expect(resolveBackendPath("DELETE", ["v1", "matches", "m-123"])).toBe("/api/v1/matches/m-123");
     expect(resolveBackendPath("GET", ["v1", "matches", "m-123"])).toBeNull();

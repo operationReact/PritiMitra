@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_MESSAGE_LENGTH,
+  parseCatchUpPage,
+  parseConversationDetail,
   parseConversationPage,
   parseMessage,
   parseMessagePage,
@@ -52,6 +54,66 @@ describe("parseMessage and parseMessagePage", () => {
 
   it("rejects a page when any item is malformed", () => {
     expect(parseMessagePage({ items: [message, { body: 1 }], nextCursor: null })).toBeNull();
+  });
+
+  it("parses latestCursor and rejects a non-string value", () => {
+    expect(parseMessagePage({ items: [message], nextCursor: null, latestCursor: "abc" })?.latestCursor).toBe("abc");
+    expect(parseMessagePage({ items: [message], nextCursor: null, latestCursor: null })?.latestCursor).toBeNull();
+    expect(parseMessagePage({ items: [message], nextCursor: null, latestCursor: 7 })).toBeNull();
+  });
+});
+
+describe("parseCatchUpPage", () => {
+  it("accepts a catch-up page with more messages pending", () => {
+    expect(parseCatchUpPage({ items: [message], cursor: "c1", hasMore: true })).toEqual({
+      items: [message],
+      cursor: "c1",
+      hasMore: true,
+    });
+  });
+
+  it("accepts an empty page that echoes the existing cursor", () => {
+    expect(parseCatchUpPage({ items: [], cursor: "c1", hasMore: false })).toEqual({
+      items: [],
+      cursor: "c1",
+      hasMore: false,
+    });
+  });
+
+  it("rejects a page without a string cursor or a boolean hasMore", () => {
+    expect(parseCatchUpPage({ items: [], cursor: null, hasMore: false })).toBeNull();
+    expect(parseCatchUpPage({ items: [], cursor: "c1", hasMore: "no" })).toBeNull();
+  });
+
+  it("rejects a page when any item is malformed", () => {
+    expect(parseCatchUpPage({ items: [{ body: 1 }], cursor: "c1", hasMore: false })).toBeNull();
+  });
+});
+
+describe("parseConversationDetail", () => {
+  it("accepts an active detail with the other participant's public profile ID", () => {
+    expect(
+      parseConversationDetail({
+        conversationId: conversation.conversationId,
+        status: "ACTIVE",
+        otherProfilePublicId: "profile-1",
+      }),
+    ).toEqual({ conversationId: conversation.conversationId, status: "ACTIVE", otherProfilePublicId: "profile-1" });
+  });
+
+  it("accepts a null other profile ID for an unmatched conversation", () => {
+    expect(
+      parseConversationDetail({ conversationId: conversation.conversationId, status: "UNMATCHED", otherProfilePublicId: null })?.status,
+    ).toBe("UNMATCHED");
+  });
+
+  it("rejects an unknown status or a non-string profile ID", () => {
+    expect(
+      parseConversationDetail({ conversationId: conversation.conversationId, status: "DELETED", otherProfilePublicId: null }),
+    ).toBeNull();
+    expect(
+      parseConversationDetail({ conversationId: conversation.conversationId, status: "ACTIVE", otherProfilePublicId: 5 }),
+    ).toBeNull();
   });
 });
 

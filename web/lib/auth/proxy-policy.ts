@@ -56,8 +56,14 @@ function isMessagingTarget(method: BackendMethod, segments: readonly string[]): 
     case "matches":
       return segments.length === 3 && method === "DELETE";
     case "conversations":
+      if (segments.length === 3) {
+        return method === "GET";
+      }
       if (segments.length === 4 && action === "messages") {
         return method === "GET" || method === "POST";
+      }
+      if (segments.length === 5 && action === "messages" && segments[4] === "newer") {
+        return method === "GET";
       }
       return segments.length === 4 && action === "read" && method === "PUT";
     case "notifications":
@@ -121,6 +127,9 @@ const PAGED_RULES: Readonly<Record<string, RegExp>> = {
 /** Conversation message history addresses one conversation by its public id. */
 const MESSAGE_HISTORY_PATH = /^\/api\/v1\/conversations\/[A-Za-z0-9-]{1,64}\/messages$/;
 
+/** Catch-up for messages newer than a cursor. The cursor is required and is checked by PAGED_RULES. */
+const MESSAGE_NEWER_PATH = /^\/api\/v1\/conversations\/[A-Za-z0-9-]{1,64}\/messages\/newer$/;
+
 /** Per-path query parameter rules. Any parameter not listed here is rejected. */
 const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = {
   "/api/v1/discovery": {
@@ -133,7 +142,7 @@ const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = 
 };
 
 function queryRulesFor(path: string): Readonly<Record<string, RegExp>> {
-  if (MESSAGE_HISTORY_PATH.test(path)) {
+  if (MESSAGE_HISTORY_PATH.test(path) || MESSAGE_NEWER_PATH.test(path)) {
     return PAGED_RULES;
   }
   return QUERY_RULES[path] ?? {};

@@ -31,7 +31,9 @@ Message history and report evidence are retained. Nothing is silently deleted.
 - Canonical pair ordering uses PostgreSQL `LEAST` and `GREATEST`. Locks are taken with `FOR NO KEY UPDATE` in ascending ID order.
 - Messages have a unique `(sender, client_message_id)` key, so retries store at most one copy. Replaying the same body returns the stored message. A different body with the same key returns `409 IDEMPOTENCY_CONFLICT`.
 - Migrations are additive and begin after V9. The applied migrations V1–V9 are unchanged.
-- `seq` is assigned from a sequence. It is not commit-ordered across concurrent transactions. A reader can skip a lower `seq` that commits later. The polling catch-up can therefore miss a message in a narrow window. This is a known risk; see [Open items](#open-items).
+- **Message ordering.** `seq` is an identity value allocated at insert time, so on its own it is not commit-ordered. Each send takes `FOR UPDATE` on the conversation row before it allocates `seq`, and holds that lock until commit or rollback. Sends to the same conversation are serialised. Sends to different conversations do not block each other. Lock order is match and conversation rows only, and unmatch and block never wait on the conversation row, so the two paths cannot deadlock. Because commit order therefore matches `seq` order, a reader that has seen `seq N` can rely on every lower `seq` being committed.
+- `created_at` is set with `clock_timestamp()` at insert, not `now()`. The `now()` default is the transaction start time and would not reflect commit-order activity. No migration was needed.
+- **Known limitation.** Under read-committed isolation, a block that commits while a send for the same pair is already in flight can let that one send through. Later sends are refused. The lock does not cover block writes, which take the `app_user` and `profile_match` rows.
 
 ## API contracts
 
@@ -42,8 +44,10 @@ Errors are RFC 9457 `ProblemDetail` with a top-level `code`. Page size defaults 
 | `GET /api/v1/matches` | Cursor-paginated matches |
 | `GET /api/v1/matches/{matchId}` | Participant-authorised details |
 | `DELETE /api/v1/matches/{matchId}` | Unmatch |
-| `GET /api/v1/conversations` | Participant conversation list with preview and unread count, ordered by public ID |
-| `GET /api/v1/conversations/{id}/messages` | Newest-first keyset history, `seq` cursor |
+| `GET /api/v1/conversations` | Participant conversation list with preview, unread count and the other profile's public ID. Ordered by latest message time, descending, with empty conversations last. Ties break on conversation public ID. Keyset cursor encodes both fields. |
+| `GET /api/v1/conversations/{id}` | Conversation detail: status and other profile's public ID. Participant only. |
+| `GET /api/v1/conversations/{id}/messages` | Newest-first keyset history, `seq` cursor. Response includes `latestCursor`. |
+| `GET /api/v1/conversations/{id}/messages/newer?cursor=&size=` | Catch-up: messages with `seq` greater than the cursor, ascending, default 50. Returns `items`, `cursor` and `hasMore`. |
 | `POST /api/v1/conversations/{id}/messages` | Idempotent send with `{clientMessageId, body}` |
 | `PUT /api/v1/conversations/{id}/read` | Advances the read cursor. Uses `GREATEST`, so it never moves backwards. |
 | `GET /api/v1/notifications` | Cursor-paginated, own notifications only |
@@ -63,18 +67,21 @@ Non-participants and unknown IDs get consistent not-found responses.
 
 ## Real-time delivery
 
-Chosen method: **bounded polling.** The web thread and the Flutter controller both fetch the newest page every 5 seconds. On failure the delay doubles up to 60 seconds. Only unseen message IDs are merged.
+Chosen method: **bounded polling with a seq catch-up cursor.** The web thread and the Flutter controller poll `messages/newer` every 5 seconds from their last accepted cursor. The cursor starts at `latestCursor` from the newest history page. Each accepted page advances the cursor to the last message it returned. If `hasMore` is true, the client drains further pages straight away. On failure the delay doubles up to 60 seconds, and the cursor stays where it was. Messages are merged by message ID, so retries and overlapping pages never duplicate a message. Polling stops when the screen is closed. A new poll is not started while one is in flight.
+
+The cursor is an opaque base64url value that encodes the conversation public ID and `seq`. It is validated against the conversation authorisation check. An invalid cursor returns `400 INVALID_CURSOR`. Because of the ordering rule above, a client that has accepted `seq N` will not miss a lower `seq` that commits later.
 
 Limits:
-- Delivery depends on the poll interval, not push.
-- The `seq` commit-ordering gap can delay or, in a narrow window, skip a message. Polling only re-reads the newest page, so a skipped message is recovered only if it is still within that page.
+- Delivery depends on the poll interval, not push. The 5-second and 60-second values are the current defaults and need product confirmation.
 - Web polling is covered by unit tests only. It has not been checked in a browser.
 
 SSE over the BFF is the next step within Phase 5. It requires a same-origin stream design and a `Last-Event-ID` catch-up. Neither exists yet.
 
 ## Notifications
 
-Implemented as in-app records written in the same transaction as the match or message. Events: match created and new message. Reads are idempotent and scoped to the owner. Bodies are not included in notification payloads.
+Implemented as in-app records written in the same transaction as the match or message. Events: match created and new message. Reads are idempotent and scoped to the owner. Bodies are not included in notification payloads. A new-message notification is created once per stored message, so a retried send does not add another one. The notification list is paged on demand. No client polls it, so the `seq` cursor there does not need the catch-up treatment.
+
+Blocking from a conversation uses the same `PUT /api/v1/blocks/{profilePublicId}` endpoint as discovery. The client closes the thread only after the server confirms.
 
 Not implemented: push delivery, email delivery, and a background processor with retry tracking. Add these behind an adapter when a provider and credentials are available.
 
@@ -82,14 +89,18 @@ Not implemented: push delivery, email delivery, and a background processor with 
 
 | Area | Command | Result |
 |---|---|---|
-| Backend | `backend\mvnw.cmd -B clean verify` (JDK 21, Docker, 4 min 36 s) | BUILD SUCCESS, 93 tests, 0 failures, 0 errors. Log: `files/backend-verify-phase5-final.log` |
-| Flutter | `flutter analyze` | No issues |
-| Flutter | `flutter test` | All 106 passed. Includes 5 new `messaging_controller_test.dart` cases: load, poll merge, session expiry, retry reuses `clientMessageId`, closed state |
-| Web | `npx vitest run` | 121 passed across 12 files, including 10 new BFF route tests |
+| Backend | `backend\mvnw.cmd -B clean verify` (JDK 21, Docker/Testcontainers) | BUILD SUCCESS, 101 tests, 0 failures, 0 errors. Includes 8 new `MessageDeliveryApiTests` (catch-up across pages, retry stored once, cursor scoping, cross-user 404, concurrent writers, activity sort, block-from-conversation, notification dedupe without body) |
+| Flutter | `dart format` on changed files | 0 files changed after formatting |
+| Flutter | `flutter analyze` | No issues found |
+| Flutter | `flutter test` | All 112 passed. Includes 6 new `messaging_controller_test.dart` cases: multi-page catch-up with cursor advance, failed poll keeps cursor, overlap dedupe, block success, block failure, closed detail |
+| Web | `npx vitest run` | 130 passed (includes new BFF allowlist tests for detail and `messages/newer`, and parser tests for `latestCursor`, catch-up and detail) |
 | Web | `npx tsc --noEmit`, `npm run lint` | Exit 0 |
-| Web | `npm run build` | Compiled; prerender succeeds |
+| Web | `npm run build` | Exit 0 |
 
-Not run: browser or device exercise, live Cognito or AWS, Figma comparison, concurrency stress tests against a running stack beyond the Testcontainers suite, and Terraform (no infrastructure changed).
+Hot reload: no Flutter app was connected to the DTD instance, so no hot reload was run. Flutter behaviour is verified by the test suite above.
+
+Not run: browser or device exercise, live Cognito or AWS, Figma comparison, Terraform (no infrastructure changed).
+
 
 ## Infrastructure and deployment
 
@@ -97,9 +108,9 @@ No AWS provisioning, Terraform apply, DNS, production database change, or deploy
 
 ## Open items
 
-1. Block and report from inside a conversation. `MatchSummary` does not expose the other profile's public ID, which the block endpoint needs. The fix is to add `profilePublicId` to the match DTO with tests. This is pending a product decision.
-2. `seq` commit-ordering gap. Mitigate with a commit-ordered cursor or document the bounded window, and add a concurrency test.
-3. SSE streaming through the BFF, replacing or augmenting polling.
-4. Push and email delivery adapters and a notification processor with retry tracking.
-5. Browser and device verification of the messaging screens.
-6. Reports have no review queue or moderation tooling. Phase 7 owns that.
+1. Read-committed block race. A block that commits while a send for the same pair is in flight can let that one message through. Closing it fully needs the block path to take the conversation row lock, or a serialisable check. Not done in this pass.
+2. SSE streaming through the BFF, replacing or augmenting polling.
+3. Push and email delivery adapters and a notification processor with retry tracking.
+4. Browser and device verification of the messaging screens.
+5. Reports have no review queue or moderation tooling. Phase 7 owns that.
+6. Polling intervals (5 s, 60 s backoff) need product confirmation.

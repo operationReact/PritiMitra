@@ -201,23 +201,31 @@ Compatibility with real environments is unverified. No shared database was queri
 - Not run: browser or device exercise of the photo flows, Figma screenshot comparison, live S3, Cognito, and `terraform apply`. These need explicit authorization or an available device.
 
 
-## Phase 5 — Matching, messaging, notifications and safety (in progress, branch eature/phase-5-matching-messaging)
+## Phase 5 ï¿½ Matching, messaging, notifications and safety (in progress, branch eature/phase-5-matching-messaging)
 
 Stacked on eature/phase-4-profiles-discovery (draft PR, not merged). Full design and lifecycle decisions: [phase-5-matching-messaging.md](./phase-5-matching-messaging.md).
 
 ### Implemented
 - Backend: transactional mutual-like matching, unmatch, conversations and idempotent text messages with a 2,000-character limit, read cursor, block and unblock, private reports, in-app notifications, and discovery exclusion of blocked pairs.
-- Flutter: matches, conversation thread with pending, failed and confirmed send states, bounded polling with backoff, and session-expiry handling.
-- Web: allow-listed BFF routes for messaging, same-origin and content-type checks, and a messages list and thread with bounded polling.
+- Message delivery reliability: each send locks the conversation row until commit, so commit order matches `seq` order. A bounded ascending catch-up endpoint (`messages/newer`) uses an opaque, validated cursor. Clients advance the cursor only on accepted responses and merge by message ID.
+- Conversation list ordered by latest message time, with a stable public-ID tie-breaker and keyset pagination. Clients render server order only.
+- Block from inside a conversation in Flutter and web. It requires confirmation and closes the thread only after the server confirms.
+- Flutter: matches, conversation thread with pending, failed and confirmed send states, catch-up polling with backoff, block action, and session-expiry handling.
+- Web: allow-listed BFF routes for messaging (including detail and catch-up), same-origin and content-type checks, and a messages list and thread with catch-up polling and block action.
 
-### Verification (actual runs, final head)
+### Verification (actual runs, this pass)
+- Backend `backend\mvnw.cmd -B clean verify` (JDK 21, Testcontainers): BUILD SUCCESS, 101 tests, 0 failures, 0 errors.
+- Flutter: `flutter analyze` no issues; `flutter test` all 112 passed.
+- Web: `npx vitest run` 130 passed; `npx tsc --noEmit` and `npm run lint` exit 0; `npm run build` exit 0.
+- Hot reload was not run because no Flutter app was connected.
+
 - Backend ackend\mvnw.cmd -B clean verify: BUILD SUCCESS, 93 tests, 0 failures, 0 errors.
 - Flutter: lutter analyze no issues; lutter test all 106 passed.
 - Web: itest run 121 passed; 	sc --noEmit and lint exit 0; 
 pm run build compiled.
 
 ### Open risks and next tasks
-- Block and report from inside a conversation are not yet available. The match DTO does not expose the other profile's public ID.
-- seq is not commit-ordered, so polling can miss a message in a narrow window.
+- Read-committed race: a block that commits during an in-flight send for the same pair can let that one message through. See the limitation in [phase-5-matching-messaging.md](./phase-5-matching-messaging.md#data-model-and-integrity).
+- Polling intervals (5 s, 60 s backoff) need product confirmation.
 - SSE, push and email delivery, and browser or device verification are not done.
 - No live AWS, Cognito, device, browser, or Figma verification was run. No infrastructure changed.

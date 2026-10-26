@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { loadProtectedJson } from "@/lib/profile/server";
-import { parseMessagePage } from "@/lib/messaging/models";
+import { parseConversationDetail, parseMessagePage } from "@/lib/messaging/models";
 import { ConversationThread } from "./conversation-thread";
 
 const PUBLIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,8 +35,11 @@ async function ConversationContent({ params }: { params: Promise<{ conversationI
     notFound();
   }
 
-  const load = await loadProtectedJson(["v1", "conversations", conversationId, "messages"]);
-  if (load.kind === "unavailable") {
+  const [load, detailLoad] = await Promise.all([
+    loadProtectedJson(["v1", "conversations", conversationId, "messages"]),
+    loadProtectedJson(["v1", "conversations", conversationId]),
+  ]);
+  if (load.kind === "unavailable" || detailLoad.kind === "unavailable") {
     return <p role="alert">This conversation is temporarily unavailable. Reload the page to try again.</p>;
   }
   if (load.kind === "signed-out") {
@@ -47,16 +50,21 @@ async function ConversationContent({ params }: { params: Promise<{ conversationI
   }
 
   const page = parseMessagePage(load.body);
-  if (!page) {
+  const detail = detailLoad.kind === "ok" ? parseConversationDetail(detailLoad.body) : null;
+  if (!page || !detail) {
     return <p role="alert">This conversation is temporarily unavailable. Reload the page to try again.</p>;
   }
 
   // The API returns newest-first; the thread displays oldest-first.
   return (
     <ConversationThread
+      key={conversationId}
       conversationId={conversationId}
       initialMessages={[...page.items].reverse()}
       initialCursor={page.nextCursor}
+      initialLatestCursor={page.latestCursor}
+      otherProfilePublicId={detail.otherProfilePublicId}
+      initialClosed={detail.status === "UNMATCHED"}
     />
   );
 }

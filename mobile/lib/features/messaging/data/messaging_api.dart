@@ -64,6 +64,31 @@ class MessagingApi {
     return _run((client) => client.getJson(path), MessagePage.fromJson);
   }
 
+  /// Fetches up to [size] messages committed after [cursor], oldest first. Repeat while [CatchUpPage.hasMore] is true.
+  Future<ApiResult<CatchUpPage>> fetchNewerMessages(
+    String conversationId, {
+    required String cursor,
+    int size = 50,
+  }) {
+    final path = _page(
+      '/api/v1/conversations/${Uri.encodeComponent(conversationId)}/messages/newer',
+      cursor,
+      size,
+    );
+    return _run((client) => client.getJson(path), CatchUpPage.fromJson);
+  }
+
+  Future<ApiResult<ConversationDetail>> fetchConversation(
+    String conversationId,
+  ) {
+    return _run(
+      (client) => client.getJson(
+        '/api/v1/conversations/${Uri.encodeComponent(conversationId)}',
+      ),
+      ConversationDetail.fromJson,
+    );
+  }
+
   /// Sends a text message. Retries must reuse [clientMessageId]; the server returns the stored message for a replay.
   Future<ApiResult<ChatMessage>> sendMessage({
     required String conversationId,

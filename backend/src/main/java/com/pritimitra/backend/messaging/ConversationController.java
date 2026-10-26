@@ -1,6 +1,8 @@
 package com.pritimitra.backend.messaging;
 
+import com.pritimitra.backend.messaging.ConversationDtos.CatchUpPage;
 import com.pritimitra.backend.messaging.ConversationDtos.ConversationPage;
+import com.pritimitra.backend.messaging.ConversationDtos.ConversationSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.MessagePage;
 import com.pritimitra.backend.messaging.ConversationDtos.MessageSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.ReadRequest;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Authenticated, participant-only conversations, message history, sends, and read state. */
+/** Authenticated, participant-only conversations, message history, catch-up, sends, and read state. */
 @RestController
 @RequestMapping("/api/v1/conversations")
 class ConversationController {
@@ -37,6 +39,11 @@ class ConversationController {
 		return conversations.list(jwt.getSubject(), cursor, size);
 	}
 
+	@GetMapping("/{conversationPublicId}")
+	ConversationSummary get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID conversationPublicId) {
+		return conversations.get(jwt.getSubject(), conversationPublicId);
+	}
+
 	@GetMapping("/{conversationPublicId}/messages")
 	MessagePage messages(
 			@AuthenticationPrincipal Jwt jwt,
@@ -44,6 +51,15 @@ class ConversationController {
 			@RequestParam(name = "cursor", required = false) String cursor,
 			@RequestParam(name = "size", defaultValue = "20") int size) {
 		return conversations.messages(jwt.getSubject(), conversationPublicId, cursor, size);
+	}
+
+	@GetMapping("/{conversationPublicId}/messages/newer")
+	CatchUpPage newer(
+			@AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID conversationPublicId,
+			@RequestParam(name = "cursor") String cursor,
+			@RequestParam(name = "size", defaultValue = "20") int size) {
+		return conversations.newer(jwt.getSubject(), conversationPublicId, cursor, size);
 	}
 
 	@PostMapping("/{conversationPublicId}/messages")

@@ -22,10 +22,25 @@ export type MessageSummary = {
   createdAt: string;
 };
 
-/** History is newest-first; the UI reverses it for display. */
+/** History is newest-first; the UI reverses it for display. latestCursor is set on the first (newest) page only. */
 export type MessagePage = {
   items: MessageSummary[];
   nextCursor: string | null;
+  latestCursor: string | null;
+};
+
+/** Catch-up page: ascending messages newer than the requested cursor. cursor advances only through returned items. */
+export type CatchUpPage = {
+  items: MessageSummary[];
+  cursor: string;
+  hasMore: boolean;
+};
+
+/** Conversation detail, including the other participant's public profile id for blocking. */
+export type ConversationDetail = {
+  conversationId: string;
+  status: "ACTIVE" | "UNMATCHED";
+  otherProfilePublicId: string | null;
 };
 
 /** Maximum text length accepted by the backend (ConversationService). */
@@ -114,7 +129,37 @@ export function parseMessagePage(value: unknown): MessagePage | null {
     items.push(parsed);
   }
   const nextCursor = nullableString(value.nextCursor);
-  return nextCursor === undefined ? null : { items, nextCursor };
+  const latestCursor = nullableString(value.latestCursor);
+  return nextCursor === undefined || latestCursor === undefined ? null : { items, nextCursor, latestCursor };
+}
+
+/** Returns a catch-up page, or null when the payload does not match the contract. */
+export function parseCatchUpPage(value: unknown): CatchUpPage | null {
+  if (!isObject(value) || !Array.isArray(value.items) || typeof value.cursor !== "string" || typeof value.hasMore !== "boolean") {
+    return null;
+  }
+  const items: MessageSummary[] = [];
+  for (const item of value.items) {
+    const parsed = parseMessage(item);
+    if (!parsed) {
+      return null;
+    }
+    items.push(parsed);
+  }
+  return { items, cursor: value.cursor, hasMore: value.hasMore };
+}
+
+/** Returns conversation detail, or null when the payload does not match the contract. */
+export function parseConversationDetail(value: unknown): ConversationDetail | null {
+  if (!isObject(value) || typeof value.conversationId !== "string") {
+    return null;
+  }
+  const { status } = value;
+  const otherProfilePublicId = nullableString(value.otherProfilePublicId);
+  if ((status !== "ACTIVE" && status !== "UNMATCHED") || otherProfilePublicId === undefined) {
+    return null;
+  }
+  return { conversationId: value.conversationId, status, otherProfilePublicId };
 }
 
 /** Client-side check mirroring the backend limit. Blank messages are rejected before any request is sent. */

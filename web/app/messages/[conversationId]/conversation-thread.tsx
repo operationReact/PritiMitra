@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   MAX_MESSAGE_LENGTH,
   MessageSummary,
+  parseCatchUpPage,
   parseMessage,
   parseMessagePage,
   validateMessageBody,
@@ -23,6 +24,10 @@ type OutgoingMessage = {
 
 function messagesPath(conversationId: string): string {
   return `/api/backend/v1/conversations/${encodeURIComponent(conversationId)}/messages`;
+}
+
+function blockPath(profilePublicId: string): string {
+  return `/api/backend/v1/blocks/${encodeURIComponent(profilePublicId)}`;
 }
 
 /** Reads the stable problem `code` from an error response, or null when the body is not parseable. */
@@ -60,10 +65,16 @@ export function ConversationThread({
   conversationId,
   initialMessages,
   initialCursor,
+  initialLatestCursor,
+  otherProfilePublicId,
+  initialClosed,
 }: {
   conversationId: string;
   initialMessages: MessageSummary[];
   initialCursor: string | null;
+  initialLatestCursor: string | null;
+  otherProfilePublicId: string | null;
+  initialClosed: boolean;
 }) {
   const [messages, setMessages] = useState<MessageSummary[]>(initialMessages);
   const [nextCursor, setNextCursor] = useState<string | null>(initialCursor);
@@ -72,8 +83,12 @@ export function ConversationThread({
   const [draft, setDraft] = useState("");
   const [composeError, setComposeError] = useState<string | null>(null);
   const [outgoing, setOutgoing] = useState<OutgoingMessage[]>([]);
-  const [closed, setClosed] = useState(false);
+  const [closed, setClosed] = useState(initialClosed);
+  const [blocking, setBlocking] = useState(false);
+  const [blockStatus, setBlockStatus] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  // Last cursor the server confirmed. Advanced only after an accepted catch-up response.
+  const catchUpCursorRef = useRef<string | null>(initialLatestCursor);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -85,20 +100,25 @@ export function ConversationThread({
     let delay = POLL_INTERVAL_MS;
 
     async function poll() {
+      let drainAgain = false;
+      const cursor = catchUpCursorRef.current;
       try {
-        const params = new URLSearchParams({ size: String(PAGE_SIZE) });
-        const response = await fetch(`${messagesPath(conversationId)}?${params.toString()}`, {
+        if (cursor === null) {
+          throw new Error("missing catch-up cursor");
+        }
+        const params = new URLSearchParams({ size: String(PAGE_SIZE), cursor });
+        const response = await fetch(`${messagesPath(conversationId)}/newer?${params.toString()}`, {
           credentials: "same-origin",
           signal: controller.signal,
         });
-        const page = response.ok ? parseMessagePage(await response.json()) : null;
+        const page = response.ok ? parseCatchUpPage(await response.json()) : null;
         if (page) {
-          const newest = [...page.items].reverse();
-          setMessages((current) => {
-            const fresh = newest.filter((item) => !current.some((existing) => existing.messageId === item.messageId));
-            return fresh.length > 0 ? [...current, ...fresh] : current;
-          });
+          catchUpCursorRef.current = page.cursor;
+          if (page.items.length > 0) {
+            setMessages((current) => page.items.reduce(mergeMessage, current));
+          }
           delay = POLL_INTERVAL_MS;
+          drainAgain = page.hasMore;
         } else {
           delay = Math.min(delay * 2, POLL_MAX_BACKOFF_MS);
         }
@@ -109,7 +129,8 @@ export function ConversationThread({
         delay = Math.min(delay * 2, POLL_MAX_BACKOFF_MS);
       }
       if (!controller.signal.aborted) {
-        timer = setTimeout(poll, delay);
+        // A single poll runs at a time: the next one is scheduled only after this one settles.
+        timer = setTimeout(poll, drainAgain ? 0 : delay);
       }
     }
 
@@ -189,6 +210,41 @@ export function ConversationThread({
     }
   }
 
+  /** Blocks the other participant after explicit confirmation. The thread closes only once the backend confirms. */
+  async function blockParticipant() {
+    if (!otherProfilePublicId || blocking || closed) {
+      return;
+    }
+    const confirmed = window.confirm(
+      "Block this person? You will no longer be able to message each other, and this conversation will close.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    setBlocking(true);
+    setBlockStatus(null);
+    try {
+      const response = await fetch(blockPath(otherProfilePublicId), {
+        method: "PUT",
+        credentials: "same-origin",
+      });
+      if (response.ok) {
+        setClosed(true);
+        setBlockStatus("Blocked. This conversation is closed.");
+        return;
+      }
+      setBlockStatus(
+        response.status === 401
+          ? "Your session has expired. Please sign in again."
+          : "We could not block this person. Try again.",
+      );
+    } catch {
+      setBlockStatus("We could not reach PritiMitra. Check your connection and try again.");
+    } finally {
+      setBlocking(false);
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const problem = validateMessageBody(draft);
@@ -211,6 +267,17 @@ export function ConversationThread({
     <section className="thread" aria-label="Conversation">
       {loadError ? <p role="alert">{loadError}</p> : null}
       {messages.length === 0 && outgoing.length === 0 ? <p>No messages yet. Say hello.</p> : null}
+
+      {otherProfilePublicId && !closed ? (
+        <div className="thread-safety">
+          <button type="button" className="button secondary" onClick={blockParticipant} disabled={blocking}>
+            {blocking ? "Blocking…" : "Block"}
+          </button>
+          {blockStatus ? <p role="alert">{blockStatus}</p> : null}
+        </div>
+      ) : blockStatus ? (
+        <p role="status">{blockStatus}</p>
+      ) : null}
 
       {nextCursor ? (
         <button type="button" className="button secondary" onClick={loadOlder} disabled={loadingOlder}>

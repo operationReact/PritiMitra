@@ -21,24 +21,37 @@ public final class ConversationDtos {
 	public record MessageSummary(UUID messageId, UUID clientMessageId, String body, boolean mine, Instant createdAt) {
 	}
 
-	/** Newest-first page of history. {@code nextCursor} points to older messages and is null when none remain. */
-	public record MessagePage(List<MessageSummary> items, String nextCursor) {
+	/**
+	 * Newest-first page of history. {@code nextCursor} points to older messages and is null when none remain.
+	 * {@code latestCursor} is set only on the first page and marks the newest message included, so a client can start
+	 * catch-up from exactly that position.
+	 */
+	public record MessagePage(List<MessageSummary> items, String nextCursor, String latestCursor) {
+	}
+
+	/**
+	 * Ascending catch-up page of messages newer than the supplied cursor. {@code cursor} advances only through the
+	 * messages actually returned; {@code hasMore} means the client should request again immediately.
+	 */
+	public record CatchUpPage(List<MessageSummary> items, String cursor, boolean hasMore) {
 	}
 
 	/**
 	 * A conversation in the viewer's list. {@code status} mirrors the underlying match (ACTIVE or UNMATCHED).
 	 * Unmatched conversations stay readable for their participants but cannot receive new messages.
+	 * {@code otherProfilePublicId} is the other participant's public profile id, used to block them.
 	 */
 	public record ConversationSummary(
 			UUID conversationId,
 			UUID matchId,
+			UUID otherProfilePublicId,
 			String status,
 			String lastMessagePreview,
 			Instant lastMessageAt,
 			long unreadCount) {
 	}
 
-	/** One page of conversations. {@code nextCursor} is null when no further results exist. */
+	/** One page of conversations ordered by most recent activity. {@code nextCursor} is null when no further results exist. */
 	public record ConversationPage(List<ConversationSummary> items, String nextCursor) {
 	}
 
