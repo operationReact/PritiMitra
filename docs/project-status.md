@@ -200,3 +200,24 @@ Compatibility with real environments is unverified. No shared database was queri
 - Terraform (from `infra/terraform`): `fmt -check -recursive` exit 0, `init -backend=false` exit 0, `validate` exit 0, `test` 6 passed, 0 failed.
 - Not run: browser or device exercise of the photo flows, Figma screenshot comparison, live S3, Cognito, and `terraform apply`. These need explicit authorization or an available device.
 
+
+## Phase 5 — Matching, messaging, notifications and safety (in progress, branch eature/phase-5-matching-messaging)
+
+Stacked on eature/phase-4-profiles-discovery (draft PR, not merged). Full design and lifecycle decisions: [phase-5-matching-messaging.md](./phase-5-matching-messaging.md).
+
+### Implemented
+- Backend: transactional mutual-like matching, unmatch, conversations and idempotent text messages with a 2,000-character limit, read cursor, block and unblock, private reports, in-app notifications, and discovery exclusion of blocked pairs.
+- Flutter: matches, conversation thread with pending, failed and confirmed send states, bounded polling with backoff, and session-expiry handling.
+- Web: allow-listed BFF routes for messaging, same-origin and content-type checks, and a messages list and thread with bounded polling.
+
+### Verification (actual runs, final head)
+- Backend ackend\mvnw.cmd -B clean verify: BUILD SUCCESS, 93 tests, 0 failures, 0 errors.
+- Flutter: lutter analyze no issues; lutter test all 106 passed.
+- Web: itest run 121 passed; 	sc --noEmit and lint exit 0; 
+pm run build compiled.
+
+### Open risks and next tasks
+- Block and report from inside a conversation are not yet available. The match DTO does not expose the other profile's public ID.
+- seq is not commit-ordered, so polling can miss a message in a narrow window.
+- SSE, push and email delivery, and browser or device verification are not done.
+- No live AWS, Cognito, device, browser, or Figma verification was run. No infrastructure changed.
