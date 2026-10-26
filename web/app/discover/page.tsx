@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { loadProtectedJson } from "@/lib/profile/server";
 import { parseDiscoveryPage } from "@/lib/profile/models";
 import { DiscoveryFeed } from "./discovery-feed";
@@ -10,6 +11,9 @@ export default function DiscoverPage() {
   return (
     <main className="app-page">
       <h1>Discover</h1>
+      <p>
+        <Link href="/messages">Your messages</Link>
+      </p>
       <Suspense fallback={<p>Finding profiles…</p>}>
         <DiscoveryContent />
       </Suspense>
