@@ -4,6 +4,7 @@ import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikeStatus;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfile;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfilePage;
+import com.pritimitra.backend.safety.BlockPolicy;
 import java.sql.Types;
 import java.util.List;
 import java.util.UUID;
@@ -54,7 +55,7 @@ class LikeService {
 		if (target.userId().equals(viewerId)) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "CANNOT_LIKE_SELF", "You cannot like your own profile");
 		}
-		if (!target.discoverable()) {
+		if (!target.discoverable() || BlockPolicy.blockedEitherWay(jdbc, viewerId, target.userId())) {
 			throw profileNotFound();
 		}
 		jdbc.sql("""

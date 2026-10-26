@@ -7,6 +7,7 @@ import com.pritimitra.backend.messaging.ConversationDtos.ConversationSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.MessagePage;
 import com.pritimitra.backend.messaging.ConversationDtos.MessageSummary;
 import com.pritimitra.backend.messaging.ConversationDtos.ReadState;
+import com.pritimitra.backend.notifications.NotificationService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -31,9 +32,11 @@ public class ConversationService {
 	private static final int MAX_PAGE_SIZE = 50;
 
 	private final JdbcClient jdbc;
+	private final NotificationService notifications;
 
-	ConversationService(JdbcClient jdbc) {
+	ConversationService(JdbcClient jdbc, NotificationService notifications) {
 		this.jdbc = jdbc;
+		this.notifications = notifications;
 	}
 
 	@Transactional(readOnly = true)
@@ -123,7 +126,7 @@ public class ConversationService {
 		if (existing.isPresent()) {
 			return existing.get();
 		}
-		if (!"ACTIVE".equals(locked.matchStatus())) {
+		if (!"ACTIVE".equals(locked.matchStatus()) || locked.blocked()) {
 			throw new ApiException(HttpStatus.CONFLICT, "CONVERSATION_CLOSED",
 					"This conversation is closed because the match has ended");
 		}
@@ -146,6 +149,7 @@ public class ConversationService {
 						rs.getTimestamp("created_at").toInstant()))
 				.optional();
 		if (inserted.isPresent()) {
+			notifications.recordNewMessage(inserted.get().messageId());
 			return inserted.get();
 		}
 		return findByClientId(locked.conversationId(), viewerId, clientMessageId, body)
@@ -188,13 +192,21 @@ public class ConversationService {
 		return new ReadState(unread);
 	}
 
-	private record ConversationLock(UUID conversationId, String matchStatus) {
+	private record ConversationLock(UUID conversationId, String matchStatus, boolean blocked) {
 	}
 
-	/** Locks the match row so an unmatch cannot commit between the status check and the insert. */
+	/**
+	 * Locks the match row so an unmatch cannot commit between the status check and the insert. The block check runs
+	 * under the same lock, so a block that commits first is always observed.
+	 */
 	private ConversationLock lockForSend(UUID viewerId, UUID conversationPublicId) {
 		return jdbc.sql("""
-				SELECT c.id AS conversation_id, m.status
+				SELECT c.id AS conversation_id, m.status,
+				       EXISTS (
+				           SELECT 1 FROM user_block b
+				           WHERE (b.blocker_id = m.user_low_id AND b.blocked_id = m.user_high_id)
+				              OR (b.blocker_id = m.user_high_id AND b.blocked_id = m.user_low_id)
+				       ) AS blocked
 				FROM conversation c
 				JOIN profile_match m ON m.id = c.match_id
 				WHERE c.public_id = :pid
@@ -204,7 +216,7 @@ public class ConversationService {
 				.param("pid", conversationPublicId)
 				.param("viewerId", viewerId)
 				.query((rs, n) -> new ConversationLock(rs.getObject("conversation_id", UUID.class),
-						rs.getString("status")))
+						rs.getString("status"), rs.getBoolean("blocked")))
 				.optional()
 				.orElseThrow(ConversationService::conversationNotFound);
 	}

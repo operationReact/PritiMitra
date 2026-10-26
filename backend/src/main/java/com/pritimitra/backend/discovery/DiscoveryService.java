@@ -52,6 +52,10 @@ class DiscoveryService {
 			  AND p.date_of_birth > CURRENT_DATE - make_interval(years => :maxAgePlusOne)
 			  AND NOT EXISTS (
 			      SELECT 1 FROM profile_like l WHERE l.from_user_id = :viewerId AND l.to_user_id = p.user_id)
+			  AND NOT EXISTS (
+			      SELECT 1 FROM user_block b
+			      WHERE (b.blocker_id = :viewerId AND b.blocked_id = p.user_id)
+			         OR (b.blocker_id = p.user_id AND b.blocked_id = :viewerId))
 			  AND (CAST(:goal AS varchar) IS NULL OR EXISTS (
 			      SELECT 1 FROM user_connection_goal g WHERE g.user_id = p.user_id AND g.goal = CAST(:goal AS varchar)))
 			  AND (CAST(:cursor AS uuid) IS NULL OR p.public_id > CAST(:cursor AS uuid))

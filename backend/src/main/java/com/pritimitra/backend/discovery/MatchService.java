@@ -1,6 +1,8 @@
 package com.pritimitra.backend.discovery;
 
 import com.pritimitra.backend.common.ApiException;
+import com.pritimitra.backend.notifications.NotificationService;
+import com.pritimitra.backend.safety.BlockPolicy;
 import com.pritimitra.backend.discovery.MatchDtos.MatchPage;
 import com.pritimitra.backend.discovery.MatchDtos.MatchState;
 import com.pritimitra.backend.discovery.MatchDtos.MatchSummary;
@@ -36,9 +38,11 @@ class MatchService {
 			""";
 
 	private final JdbcClient jdbc;
+	private final NotificationService notifications;
 
-	MatchService(JdbcClient jdbc) {
+	MatchService(JdbcClient jdbc, NotificationService notifications) {
 		this.jdbc = jdbc;
+		this.notifications = notifications;
 	}
 
 	/**
@@ -48,6 +52,10 @@ class MatchService {
 	MatchOutcome reconcileLike(UUID viewerId, UUID targetUserId) {
 		Pair pair = pair(viewerId, targetUserId);
 		lockUsers(pair);
+		// Checked after the lock: a block that commits concurrently with a like must still prevent the match.
+		if (BlockPolicy.blockedEitherWay(jdbc, viewerId, targetUserId)) {
+			return new MatchOutcome(MatchState.NONE, null);
+		}
 		Optional<MatchRow> existing = findMatch(pair);
 		if (existing.isPresent() && "ACTIVE".equals(existing.get().status())) {
 			return new MatchOutcome(MatchState.EXISTING, existing.get().publicId());
@@ -63,6 +71,7 @@ class MatchService {
 					.param("id", existing.get().id())
 					.update();
 			ensureConversation(pair);
+			notifications.recordMatch(pair.low(), pair.high());
 			return new MatchOutcome(MatchState.CREATED, existing.get().publicId());
 		}
 		UUID publicId = jdbc.sql("""
@@ -75,6 +84,7 @@ class MatchService {
 				.query(UUID.class)
 				.single();
 		ensureConversation(pair);
+		notifications.recordMatch(pair.low(), pair.high());
 		return new MatchOutcome(MatchState.CREATED, publicId);
 	}
 
