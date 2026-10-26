@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { authErrorResponse, readBoundedText, rejectUnsafeRequest, withSessionCookies } from "@/lib/auth/http";
+import { authErrorResponse, readBoundedBytes, readBoundedText, rejectUnsafeRequest, withSessionCookies } from "@/lib/auth/http";
 import { callBackend } from "@/lib/auth/backend-proxy";
+import { isMultipartBackendRoute, resolveBackendPath } from "@/lib/auth/proxy-policy";
 import { clearSessionCookies, type CookieWriter } from "@/lib/auth/session";
 
 const MAX_PROXY_BODY_BYTES = 64 * 1024;
+/** Five MiB photo plus multipart framing. The backend enforces the same photo limit and its own request cap. */
+const MAX_PHOTO_UPLOAD_BYTES = 5 * 1024 * 1024 + 128 * 1024;
+const MULTIPART_CONTENT_TYPE = /^multipart\/form-data; boundary=[A-Za-z0-9'()+_,./:=?-]{1,70}$/i;
+const RELAYED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -12,14 +17,32 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
   const { path } = await context.params;
   const method = request.method;
 
+  const upstreamPath = resolveBackendPath(method, path);
+  const multipart = upstreamPath !== null && isMultipartBackendRoute(method, upstreamPath);
   let body: string | undefined;
+  let upload: { bytes: Uint8Array<ArrayBuffer>; contentType: string } | undefined;
   if (method !== "GET") {
-    const rejected = rejectUnsafeRequest(request);
+    const rejected = rejectUnsafeRequest(request, multipart ? "multipart/form-data" : "application/json");
     if (rejected) {
       return rejected;
     }
   }
-  if (method === "PUT" || method === "POST") {
+  if (multipart) {
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!MULTIPART_CONTENT_TYPE.test(contentType)) {
+      return authErrorResponse(415, "unsupported_media_type");
+    }
+    const declared = request.headers.get("content-length");
+    if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > MAX_PHOTO_UPLOAD_BYTES)) {
+      return authErrorResponse(413, "payload_too_large");
+    }
+    const bytes = await readBoundedBytes(request.body, MAX_PHOTO_UPLOAD_BYTES);
+    if (!bytes) {
+      return authErrorResponse(413, "payload_too_large");
+    }
+    upload = { bytes, contentType };
+  }
+  if (!multipart && (method === "PUT" || method === "POST")) {
     const text = await readBoundedText(request, MAX_PROXY_BODY_BYTES);
     if (text === null) {
       return authErrorResponse(413, "payload_too_large");
@@ -42,6 +65,7 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
       search: new URL(request.url).searchParams,
       read: await cookies(),
       body,
+      upload,
       canRefresh: true,
     });
   } catch {
@@ -70,14 +94,32 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
     return response;
   }
 
-  const response = new NextResponse(result.body, {
-    status: result.status,
+  const response = result.bytes
+    ? relayImage(result.status, result.bytes, result.contentType)
+    : new NextResponse(result.body, {
+        status: result.status,
+        headers: {
+          "Content-Type": result.contentType ?? "application/json",
+          "Cache-Control": "no-store",
+        },
+      });
+  return result.refreshed ? withSessionCookies(response, result.refreshed) : response;
+}
+
+/** Relays a stored photo only when the upstream type is one the upload pipeline produces. */
+function relayImage(status: number, bytes: Uint8Array<ArrayBuffer>, contentType: string | null): NextResponse {
+  const type = contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!RELAYED_IMAGE_TYPES.has(type)) {
+    return authErrorResponse(502, "backend_unavailable");
+  }
+  return new NextResponse(new Blob([bytes], { type }), {
+    status,
     headers: {
-      "Content-Type": result.contentType ?? "application/json",
+      "Content-Type": type,
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
-  return result.refreshed ? withSessionCookies(response, result.refreshed) : response;
 }
 
 export function GET(request: Request, context: RouteContext): Promise<NextResponse> {

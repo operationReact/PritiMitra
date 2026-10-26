@@ -13,20 +13,30 @@ export function isSameOrigin(headers: Headers, requestOrigin: string): boolean {
   }
 }
 
-export function hasJsonContentType(headers: Headers): boolean {
+export type AcceptedBodyType = "application/json" | "multipart/form-data";
+
+function hasContentType(headers: Headers, expected: AcceptedBodyType): boolean {
   const value = headers.get("content-type");
   if (!value) {
     return false;
   }
-  return value.split(";")[0]?.trim().toLowerCase() === "application/json";
+  return value.split(";")[0]?.trim().toLowerCase() === expected;
 }
 
-/** CSRF gate for every state-changing request: same-origin Origin header and JSON content type. */
-export function checkStateChange(headers: Headers, requestOrigin: string): StateChangeCheck {
+export function hasJsonContentType(headers: Headers): boolean {
+  return hasContentType(headers, "application/json");
+}
+
+/** CSRF gate for every state-changing request: same-origin Origin header and the accepted body content type. */
+export function checkStateChange(
+  headers: Headers,
+  requestOrigin: string,
+  accepted: AcceptedBodyType = "application/json",
+): StateChangeCheck {
   if (!isSameOrigin(headers, requestOrigin)) {
     return { ok: false, reason: "origin" };
   }
-  if (!hasJsonContentType(headers)) {
+  if (!hasContentType(headers, accepted)) {
     return { ok: false, reason: "content_type" };
   }
   return { ok: true };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveBackendPath, resolveBackendQuery } from "./proxy-policy";
+import { isBinaryBackendPath, isMultipartBackendRoute, resolveBackendPath, resolveBackendQuery } from "./proxy-policy";
 
 describe("resolveBackendPath", () => {
   it("maps allow-listed method and path pairs", () => {
@@ -56,6 +56,40 @@ describe("resolveBackendPath", () => {
   it("denies empty and overly long segment lists", () => {
     expect(resolveBackendPath("GET", [])).toBeNull();
     expect(resolveBackendPath("GET", Array.from({ length: 9 }, () => "v1"))).toBeNull();
+  });
+
+  it("maps photo list and upload only on the exact collection path", () => {
+    expect(resolveBackendPath("GET", ["v1", "profile", "photos"])).toBe("/api/v1/profile/photos");
+    expect(resolveBackendPath("POST", ["v1", "profile", "photos"])).toBe("/api/v1/profile/photos");
+    expect(resolveBackendPath("PUT", ["v1", "profile", "photos"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "profile", "photos"])).toBeNull();
+  });
+
+  it("maps photo content and delete only for a canonical UUID", () => {
+    const id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    expect(resolveBackendPath("GET", ["v1", "profile", "photos", id, "content"])).toBe(
+      `/api/v1/profile/photos/${id}/content`,
+    );
+    expect(resolveBackendPath("DELETE", ["v1", "profile", "photos", id])).toBe(`/api/v1/profile/photos/${id}`);
+    expect(resolveBackendPath("GET", ["v1", "profile", "photos", "not-a-uuid", "content"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "profile", "photos", "../" + id])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "profile", "photos", id + "x"])).toBeNull();
+  });
+
+  it("denies photo metadata writes and unknown photo subpaths", () => {
+    const id = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    expect(resolveBackendPath("GET", ["v1", "profile", "photos", id])).toBeNull();
+    expect(resolveBackendPath("POST", ["v1", "profile", "photos", id, "content"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "profile", "photos", id, "content"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "profile", "photos", id, "storage"])).toBeNull();
+  });
+
+  it("flags only the upload route as multipart and only content as binary", () => {
+    expect(isMultipartBackendRoute("POST", "/api/v1/profile/photos")).toBe(true);
+    expect(isMultipartBackendRoute("GET", "/api/v1/profile/photos")).toBe(false);
+    expect(isMultipartBackendRoute("POST", "/api/v1/likes/pub-abc123")).toBe(false);
+    expect(isBinaryBackendPath(`/api/v1/profile/photos/3f2504e0-4f89-41d3-9a0c-0305e82c3301/content`)).toBe(true);
+    expect(isBinaryBackendPath("/api/v1/profile/photos")).toBe(false);
   });
 });
 

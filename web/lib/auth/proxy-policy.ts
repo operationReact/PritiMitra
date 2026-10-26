@@ -13,13 +13,28 @@ const ALLOWED_ROUTES: readonly AllowedRoute[] = [
   { method: "GET", path: "/api/v1/profile" },
   { method: "PUT", path: "/api/v1/profile/discoverability" },
   { method: "GET", path: "/api/v1/discovery" },
+  { method: "GET", path: "/api/v1/profile/photos" },
+  { method: "POST", path: "/api/v1/profile/photos" },
 ];
 
 const SEGMENT_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
+const PHOTO_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_SEGMENTS = 8;
 
 export function isBackendMethod(method: string): method is BackendMethod {
   return method === "GET" || method === "PUT" || method === "POST" || method === "DELETE";
+}
+
+/** Photo content GET and photo DELETE address one photo by UUID. The id must be a canonical UUID. */
+function isPhotoTarget(method: BackendMethod, segments: readonly string[]): boolean {
+  const prefixed = segments.length >= 4 && segments[0] === "v1" && segments[1] === "profile" && segments[2] === "photos";
+  if (!prefixed || !PHOTO_ID_PATTERN.test(segments[3] ?? "")) {
+    return false;
+  }
+  if (segments.length === 4) {
+    return method === "DELETE";
+  }
+  return segments.length === 5 && segments[4] === "content" && method === "GET";
 }
 
 /**
@@ -45,8 +60,22 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   // Like and unlike address one profile by its public id: PUT or DELETE /api/v1/likes/{publicId}.
   const isLikeTarget =
     segments.length === 3 && segments[0] === "v1" && segments[1] === "likes" && (method === "PUT" || method === "DELETE");
-  return isLikeTarget ? path : null;
+  if (isLikeTarget) {
+    return path;
+  }
+  return isPhotoTarget(method, segments) ? path : null;
 }
+
+/** True for the photo content path, whose successful response is an image body rather than JSON. */
+export function isBinaryBackendPath(path: string): boolean {
+  return /^\/api\/v1\/profile\/photos\/[0-9a-f-]{36}\/content$/i.test(path);
+}
+
+/** True for the photo upload path, which accepts a multipart body instead of JSON. */
+export function isMultipartBackendRoute(method: string, path: string): boolean {
+  return method === "POST" && path === "/api/v1/profile/photos";
+}
+
 
 const GOAL_VALUES = ["DATING", "FRIENDSHIP", "COMMUNITY", "MEET_PEOPLE", "OPEN_TO_CONNECTION"] as const;
 

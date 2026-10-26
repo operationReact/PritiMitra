@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { loadProtectedJson } from "@/lib/profile/server";
 import { parseOwnProfile } from "@/lib/profile/models";
+import { parseOwnPhotoList } from "@/lib/profile/photos";
 import { DiscoverabilityToggle } from "./discoverability-toggle";
+import { PhotoManager } from "./photo-manager";
 
 export const metadata = {
   title: "My profile",
@@ -35,14 +37,20 @@ async function ProfileContent() {
     return <p role="alert">Your profile is temporarily unavailable. Please try again.</p>;
   }
 
+  const photoLoad = await loadProtectedJson(["v1", "profile", "photos"]);
+  const initialPhotos = photoLoad.kind === "ok" ? parseOwnPhotoList(photoLoad.body) : null;
+
   return (
-    <section className="profile-card" aria-labelledby="profile-name">
-      <h2 id="profile-name">{profile.displayName}</h2>
-      {profile.bio ? <p>{profile.bio}</p> : null}
-      {profile.profilePrompt ? <p className="profile-prompt">{profile.profilePrompt}</p> : null}
-      {profile.goals.length > 0 ? <p>Goals: {profile.goals.join(", ")}</p> : null}
-      {profile.interests.length > 0 ? <p>Interests: {profile.interests.join(", ")}</p> : null}
-      <DiscoverabilityToggle initialDiscoverable={profile.discoverable} />
-    </section>
+    <>
+      <section className="profile-card" aria-labelledby="profile-name">
+        <h2 id="profile-name">{profile.displayName}</h2>
+        {profile.bio ? <p>{profile.bio}</p> : null}
+        {profile.profilePrompt ? <p className="profile-prompt">{profile.profilePrompt}</p> : null}
+        {profile.goals.length > 0 ? <p>Goals: {profile.goals.join(", ")}</p> : null}
+        {profile.interests.length > 0 ? <p>Interests: {profile.interests.join(", ")}</p> : null}
+        <DiscoverabilityToggle initialDiscoverable={profile.discoverable} />
+      </section>
+      <PhotoManager initialPhotos={initialPhotos} />
+    </>
   );
 }
