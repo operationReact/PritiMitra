@@ -133,7 +133,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Not run in this checkpoint: browser or screenshot checks of the new web pages. Visual parity with Figma is not verified.
 
 ### Hardening pass (PR #5 review fixes)
-- Photo validation: JPEG and PNG only. Files are decoded with ImageIO, which rejects truncated or corrupt images. Limits are 5 MB, 8,000 px per side and 40 MP. Accepted images are re-encoded to strip metadata, and the stored content type matches the output. WebP is removed from the accepted set. Applied migration V5 still allowed `image/webp` in its CHECK constraint; additive migration V6 reconciles this (see Checkpoint F).
+- Photo validation: JPEG and PNG only. Files are decoded with ImageIO, which rejects truncated or corrupt images. Limits are 5 MB, 4,096 px per side and 12 MP. Accepted images are re-encoded to strip metadata, and the stored content type matches the output. WebP is removed from the accepted set. Applied migration V5 still allowed `image/webp` in its CHECK constraint; additive migration V6 reconciles this (see Checkpoint F).
 - Terraform: mocked-provider tests cover the TLS-deny policy and the stale-upload abort lifecycle. The backend runtime IAM role is still not declared. It is a deployment dependency, and nothing was applied.
 - Discovery: inclusive age-window boundary tests and a malformed cursor test were added.
 - Discovery preferences: gender and interest preferences are NOT enforced. Candidate gender identity is free text, so reliable matching is not possible yet. Only the age window and goal filter are enforced.
