@@ -40,9 +40,11 @@ class LikeService {
 			""";
 
 	private final JdbcClient jdbc;
+	private final MatchService matches;
 
-	LikeService(JdbcClient jdbc) {
+	LikeService(JdbcClient jdbc, MatchService matches) {
 		this.jdbc = jdbc;
+		this.matches = matches;
 	}
 
 	@Transactional
@@ -62,7 +64,8 @@ class LikeService {
 				.param("from", viewerId)
 				.param("to", target.userId())
 				.update();
-		return new LikeStatus(true);
+		MatchService.MatchOutcome outcome = matches.reconcileLike(viewerId, target.userId());
+		return new LikeStatus(true, outcome.state(), outcome.matchPublicId());
 	}
 
 	@Transactional
@@ -77,7 +80,7 @@ class LikeService {
 				.param("from", viewerId)
 				.param("publicId", targetPublicId)
 				.update();
-		return new LikeStatus(false);
+		return new LikeStatus(false, MatchDtos.MatchState.NONE, null);
 	}
 
 	@Transactional(readOnly = true)
