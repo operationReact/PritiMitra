@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_result.dart';
@@ -103,13 +105,70 @@ class ConversationController extends Notifier<ConversationState> {
 
   final String conversationId;
 
+  static const Duration _pollInterval = Duration(seconds: 5);
+  static const Duration _maxPollBackoff = Duration(seconds: 60);
+
+  Timer? _pollTimer;
+  Duration _pollDelay = _pollInterval;
+  bool _polling = false;
+  bool _disposed = false;
+
   @override
   ConversationState build() {
+    ref.onDispose(() {
+      _disposed = true;
+      _pollTimer?.cancel();
+    });
     Future<void>.microtask(load);
+    _schedulePoll();
     return const ConversationState();
   }
 
   MessagingApi get _api => ref.read(messagingApiProvider);
+
+  void _schedulePoll() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer(_pollDelay, () async {
+      await pollNewest();
+      if (!_disposed && !state.sessionExpired) {
+        _schedulePoll();
+      }
+    });
+  }
+
+  /// Fetches the newest page and adds only unseen messages. Failures back off up to 60 seconds.
+  Future<void> pollNewest() async {
+    if (_polling || _disposed) {
+      return;
+    }
+    _polling = true;
+    try {
+      final result = await _api.fetchMessages(conversationId);
+      if (_disposed) {
+        return;
+      }
+      switch (result) {
+        case ApiSuccess(:final data):
+          final known = state.messages.map((m) => m.messageId).toSet();
+          final fresh = data.items.where((m) => !known.contains(m.messageId));
+          _pollDelay = _pollInterval;
+          if (fresh.isNotEmpty) {
+            state = state.copyWith(messages: [...fresh, ...state.messages]);
+          }
+        case ApiUnauthorized():
+          state = state.copyWith(sessionExpired: true);
+        case ApiForbidden() || ApiUnavailable():
+          _pollDelay = _nextBackoff(_pollDelay);
+      }
+    } finally {
+      _polling = false;
+    }
+  }
+
+  static Duration _nextBackoff(Duration current) {
+    final doubled = current * 2;
+    return doubled > _maxPollBackoff ? _maxPollBackoff : doubled;
+  }
 
   Future<void> load() async {
     state = state.copyWith(loading: true, clearError: true);

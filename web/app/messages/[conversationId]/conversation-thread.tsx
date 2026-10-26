@@ -10,6 +10,8 @@ import {
 } from "@/lib/messaging/models";
 
 const PAGE_SIZE = 50;
+const POLL_INTERVAL_MS = 5_000;
+const POLL_MAX_BACKOFF_MS = 60_000;
 
 /** A composed message that the server has not yet confirmed. It is shown separately from confirmed history. */
 type OutgoingMessage = {
@@ -76,6 +78,47 @@ export function ConversationThread({
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, outgoing.length]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let delay = POLL_INTERVAL_MS;
+
+    async function poll() {
+      try {
+        const params = new URLSearchParams({ size: String(PAGE_SIZE) });
+        const response = await fetch(`${messagesPath(conversationId)}?${params.toString()}`, {
+          credentials: "same-origin",
+          signal: controller.signal,
+        });
+        const page = response.ok ? parseMessagePage(await response.json()) : null;
+        if (page) {
+          const newest = [...page.items].reverse();
+          setMessages((current) => {
+            const fresh = newest.filter((item) => !current.some((existing) => existing.messageId === item.messageId));
+            return fresh.length > 0 ? [...current, ...fresh] : current;
+          });
+          delay = POLL_INTERVAL_MS;
+        } else {
+          delay = Math.min(delay * 2, POLL_MAX_BACKOFF_MS);
+        }
+      } catch {
+        if (controller.signal.aborted) {
+          return;
+        }
+        delay = Math.min(delay * 2, POLL_MAX_BACKOFF_MS);
+      }
+      if (!controller.signal.aborted) {
+        timer = setTimeout(poll, delay);
+      }
+    }
+
+    timer = setTimeout(poll, delay);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [conversationId]);
 
   async function loadOlder() {
     if (!nextCursor) {
