@@ -175,6 +175,24 @@ Commits on `feature/phase-4-profiles-discovery`: `394b889` (web photos), `2f3b91
 - **Discovery preferences**: gender identity and interest matching are NOT enforced. Gender identity is free text, so reliable matching is not possible. Eligibility (ACTIVE, onboarded, discoverable, not self), the age window, and the goal filter are enforced server-side.
 - **Deployment dependency**: the backend runtime IAM role (`s3:PutObject`, `GetObject`, `DeleteObject` on the profile photo bucket only) is not defined in Terraform. It is not invented here. It must be declared before the live API can store photos. Nothing was applied.
 
+**V6 pre-deployment check (read-only).** Run against each shared database before applying V6. Any row returned blocks the migration, which fails closed by design. Do not convert or delete rows silently:
+
+```sql
+SELECT content_type, count(*) AS rows_blocking_v6
+FROM profile_photo
+WHERE content_type NOT IN ('image/jpeg', 'image/png')
+GROUP BY content_type;
+```
+
+Compatibility with real environments is unverified. No shared database was queried.
+
+### Closure verification (current tree, `3ef7023` plus docs)
+- Backend `mvnw.cmd -B verify`: exit 0, 66 tests, 0 failures, BUILD SUCCESS. Log was written to a temp file, not committed.
+- Web: `npm test` 99/99 passed, `tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0.
+- Terraform: `fmt -check -recursive` exit 0, `init -backend=false` exit 0, `validate` exit 0, `test` 6 passed.
+- Flutter: `flutter analyze` and `flutter test` (91 passed) were run on this same Flutter code (no Flutter code changed since `5bb9cbb`).
+- GitHub Actions on the head: Backend CI, Web frontend CI and Flutter mobile CI all succeeded. There is no Terraform CI workflow.
+
 ### Verification (Checkpoint F, actual runs)
 - Backend `backend\mvnw.cmd -B verify` (Docker 29.9.2 running, `JAVA_HOME` set to JDK 21): exit 0, BUILD SUCCESS, 66 tests, 0 failures, 0 errors. Includes `ProfilePhotoMigrationTests` 3/3, `PhotoApiTests` 14/14, `PhotoImageProcessorTests` 4/4, `ProfileDiscoveryApiTests` 17/17, `Phase4UpgradeMigrationTests` 1/1.
 - Flutter: `flutter analyze` on the touched paths exit 0, no issues. Full `flutter test` exit 0, 91 passed. Targeted: `pritimitra_api_client_test` 6/6, `profile_photo_api_test` and `profile_photo_controller_test` pass, `profile_discovery_api_test` 14/14.
