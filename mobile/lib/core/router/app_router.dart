@@ -11,6 +11,7 @@ import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/discovery/presentation/discovery_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/messaging/presentation/messaging_screens.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/welcome/presentation/welcome_screen.dart';
@@ -29,9 +30,22 @@ abstract final class AppRoutes {
   static const home = '/home';
   static const discover = '/discover';
   static const profile = '/profile';
+  static const conversations = '/conversations';
+  static const notifications = '/notifications';
 
   /// Protected pages that only ACTIVE accounts may open.
-  static const activePaths = {home, discover, profile};
+  static const activePaths = {
+    home,
+    discover,
+    profile,
+    conversations,
+    notifications,
+  };
+
+  /// True for protected pages that only ACTIVE accounts may open, including
+  /// parameterised children such as `/conversations/:id`.
+  static bool isActivePath(String path) =>
+      activePaths.contains(path) || path.startsWith('$conversations/');
 
   static const publicPaths = {
     welcome,
@@ -65,8 +79,7 @@ String? redirectForAccess({
       path == AppRoutes.onboarding ? null : AppRoutes.onboarding,
     AccessDecision.ineligible =>
       path == AppRoutes.ineligible ? null : AppRoutes.ineligible,
-    AccessDecision.home =>
-      AppRoutes.activePaths.contains(path) ? null : AppRoutes.home,
+    AccessDecision.home => AppRoutes.isActivePath(path) ? null : AppRoutes.home,
   };
 }
 
@@ -111,6 +124,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       _page(AppRoutes.home, const HomeScreen()),
       _page(AppRoutes.discover, const DiscoveryScreen()),
       _page(AppRoutes.profile, const ProfileScreen()),
+      _page(AppRoutes.conversations, const ConversationsScreen()),
+      GoRoute(
+        path: '${AppRoutes.conversations}/:conversationId',
+        pageBuilder: (context, state) => AppMotion.routePage(
+          key: state.pageKey,
+          child: ConversationScreen(
+            conversationId: state.pathParameters['conversationId'] ?? '',
+          ),
+        ),
+      ),
+      _page(AppRoutes.notifications, const NotificationsScreen()),
     ],
   );
   ref.onDispose(router.dispose);

@@ -38,8 +38,27 @@ class PritiMitraApiClient {
     return _requestJson('PUT', path, body: body);
   }
 
-  Future<ApiResult<Map<String, dynamic>>> postJson(String path) {
-    return _requestJson('POST', path);
+  Future<ApiResult<Map<String, dynamic>>> postJson(
+    String path, {
+    Map<String, dynamic>? body,
+  }) {
+    return _requestJson('POST', path, body: body);
+  }
+
+  /// For PUT endpoints that answer 204 with no body.
+  Future<ApiResult<void>> putNoContent(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final response = await _requestRaw('PUT', path, body: body);
+    if (response == null) {
+      return const ApiUnavailable();
+    }
+    final failure = _failure<void>(response);
+    if (failure != null) {
+      return failure;
+    }
+    return const ApiSuccess(null);
   }
 
   Future<ApiResult<Map<String, dynamic>>> deleteJson(String path) {

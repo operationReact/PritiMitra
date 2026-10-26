@@ -25,6 +25,16 @@ class HomeScreen extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         OutlinedButton(
+          onPressed: () => context.go(AppRoutes.conversations),
+          child: const Text('Matches and messages'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        OutlinedButton(
+          onPressed: () => context.go(AppRoutes.notifications),
+          child: const Text('Notifications'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        OutlinedButton(
           onPressed: () => context.go(AppRoutes.profile),
           child: const Text('My profile'),
         ),
