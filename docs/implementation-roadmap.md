@@ -48,7 +48,7 @@ Review likely costs before authorizing provisioning, including Cognito usage, SE
 
 ## Phase 4 — Profiles and discovery
 
-Status: **in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Not complete.** Implemented and tested: backend profile, privacy, discovery, likes, and photo APIs; Flutter profile and discovery; web profile, discovery (with load-more) and likes; Terraform photo bucket. Deferred: Flutter photo management UI, web photo upload, and enforcement of gender and interest preferences. Not live-tested: S3 and Cognito. The backend runtime IAM role is not declared. See `docs/project-status.md` for the verified evidence.
+Status: **in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Not complete.** Implemented and unit-tested: backend profile, privacy, discovery, likes, photo APIs and the V6 photo-type migration; Flutter profile, discovery and photo management (picker, upload, list, delete); web profile, discovery (with load-more), likes and photo management through the BFF; Terraform photo bucket. Deferred or blocked: gender and interest preference matching (not enforced, documented), the backend runtime IAM role (deployment dependency, not declared), live S3 and Cognito tests (need authorization), and device or browser validation of the photo flows. See `docs/project-status.md` for the verified evidence.
 
 ### Scope
 

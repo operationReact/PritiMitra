@@ -73,7 +73,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 
 ### Not done or outstanding
 - Web onboarding and auth pages (Step 1 web half), Step 2 remaining auth screens, and Step 3 permission/error states are not implemented.
-- Phase 4 (profiles, photos, discovery, likes) is in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Backend, Flutter and web profile and discovery are implemented. See the Phase 4 section for verified results and open items.
+- Phase 4 (profiles, photos, discovery, likes) is in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Backend, Flutter and web profile, photo, discovery and like flows are implemented. Live AWS/Cognito and device or browser validation are not done. See the Phase 4 section for verified results and open items.
 - Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
 - SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
 - Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
@@ -120,7 +120,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Routes `/profile` and `/discover` are reachable only for `ACTIVE` accounts. Home screen links to both.
 - Profile screen shows the own profile, the discoverability toggle, and `PROFILE_INCOMPLETE` handling. Discovery screen lists cards with like and unlike, and pages with a cursor.
 - `ApiUnavailable` carries the backend error `code`, so 409 `PROFILE_INCOMPLETE` reaches the UI.
-- Photo management UI is not implemented in Flutter yet.
+- Photo management UI: implemented in Checkpoint F (see below).
 
 ### Implemented (Web, Checkpoint D)
 - BFF allowlist extended exactly: `GET /api/v1/profile`, `PUT /api/v1/profile/discoverability`, `GET /api/v1/discovery` (first page only, no query string), and `PUT`/`DELETE /api/v1/likes/{publicId}`. `DELETE` is added to the proxy handler with the same same-origin and JSON-content-type CSRF gate as PUT and POST.
@@ -133,7 +133,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Not run in this checkpoint: browser or screenshot checks of the new web pages. Visual parity with Figma is not verified.
 
 ### Hardening pass (PR #5 review fixes)
-- Photo validation: JPEG and PNG only. Files are decoded with ImageIO, which rejects truncated or corrupt images. Limits are 5 MB, 8,000 px per side and 40 MP. Accepted images are re-encoded to strip metadata, and the stored content type matches the output. WebP is removed from the accepted set, but applied migration V5 still allows `image/webp` in its CHECK constraint. This mismatch is documented, not fixed, because V5 must not be edited and a V6 migration is not yet approved.
+- Photo validation: JPEG and PNG only. Files are decoded with ImageIO, which rejects truncated or corrupt images. Limits are 5 MB, 8,000 px per side and 40 MP. Accepted images are re-encoded to strip metadata, and the stored content type matches the output. WebP is removed from the accepted set. Applied migration V5 still allowed `image/webp` in its CHECK constraint; additive migration V6 reconciles this (see Checkpoint F).
 - Terraform: mocked-provider tests cover the TLS-deny policy and the stale-upload abort lifecycle. The backend runtime IAM role is still not declared. It is a deployment dependency, and nothing was applied.
 - Discovery: inclusive age-window boundary tests and a malformed cursor test were added.
 - Discovery preferences: gender and interest preferences are NOT enforced. Candidate gender identity is free text, so reliable matching is not possible yet. Only the age window and goal filter are enforced.
@@ -148,8 +148,8 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Not run: browser or screenshot checks, and Figma comparison. Visual validation is not claimed.
 
 ### Outstanding and deferred (Phase 4)
-- Flutter photo upload and management UI: NOT implemented. `image_picker` is not in `mobile/pubspec.yaml`, and the app never calls the photo endpoints. Adding the picker needs Android and iOS permission setup that has not been verified on a device.
-- Web photo upload and management: NOT implemented. The BFF CSRF gate requires JSON Content-Type on non-GET requests. Multipart support needs a design change that has not been made, and the gate has not been weakened.
+- Flutter and web photo management: implemented and unit-tested (Checkpoint F). Not exercised on a device or in a browser, and no Flutter app was connected for hot reload.
+- Android photo-picker configuration is not added. iOS has `NSPhotoLibraryUsageDescription`. Whether `image_picker` returns HEIC on iOS is unverified. The server accepts only JPEG and PNG, so a HEIC pick is rejected by the server.
 - Discovery preferences (gender identity and interests): NOT enforced, as described above.
 - Viewer-liked state on discovery cards: not provided. Liked profiles are reached through the outgoing-likes list.
 - Live AWS S3 and Cognito behaviour is not tested. Authorisation has not been given for a development bucket or `terraform apply`. The backend runtime IAM role is blocked on that infrastructure decision.
@@ -165,4 +165,20 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Not re-run in this checkpoint: Flutter and web, since neither changed after Checkpoint D.
 - Distance and interest matching are not enforced in discovery. Candidate gender identity is free text, and there is no location data.
 - Live Cognito and S3 behaviour is untested in this environment. Hot reload of Flutter was not run because no app is connected.
+
+### Checkpoint F: photo management, V6, and final verification
+Commits on `feature/phase-4-profiles-discovery`: `394b889` (web photos), `2f3b91b` (V6), `5bb9cbb` (Flutter photos).
+
+- **Flutter photo management** (`5bb9cbb`): own photo list, picker (`image_picker`), upload with transport-level progress, server-confirmed results only, retry for recoverable failures (network, 5xx), delete with confirmation, 401 refresh-and-retry, empty and error states, and a privacy note (not identity-verified, owner-only). The picker accepts only JPEG and PNG by magic bytes. The client check is UX only; the server is authoritative. Upload progress measures bytes handed to the transport, not server acceptance, and the UI shows "Checking your photo…" at 100%.
+- **Web photo management** (`394b889`): profile photo UI in `web/app/profile`. Multipart upload goes through the existing BFF `/api/backend/[...path]` route with an explicit allow-list, the same-origin Origin check, and a multipart content-type check. The request body is capped at 5 MiB plus 128 KiB of multipart overhead, checked against the declared length and then read with a bounded reader. Binary media responses are capped at 8 MiB and sent with `Cache-Control: no-store`. Access tokens stay server-side. The BFF is not a general-purpose proxy, and the CSRF gate was not weakened.
+- **V6 migration** (`2f3b91b`): `V6__reconcile_profile_photo_content_types.sql` is additive. It fails closed if any row has a non-JPEG/PNG content type. Otherwise it replaces the CHECK constraint with JPEG/PNG only. V1–V5 are unchanged. `ProfilePhotoMigrationTests` covers a clean schema, an upgrade from V5 that keeps rows and rejects WebP, and a failed upgrade when WebP rows exist. Open question: whether any shared environment contains WebP rows.
+- **Discovery preferences**: gender identity and interest matching are NOT enforced. Gender identity is free text, so reliable matching is not possible. Eligibility (ACTIVE, onboarded, discoverable, not self), the age window, and the goal filter are enforced server-side.
+- **Deployment dependency**: the backend runtime IAM role (`s3:PutObject`, `GetObject`, `DeleteObject` on the profile photo bucket only) is not defined in Terraform. It is not invented here. It must be declared before the live API can store photos. Nothing was applied.
+
+### Verification (Checkpoint F, actual runs)
+- Backend `backend\mvnw.cmd -B verify` (Docker 29.9.2 running, `JAVA_HOME` set to JDK 21): exit 0, BUILD SUCCESS, 66 tests, 0 failures, 0 errors. Includes `ProfilePhotoMigrationTests` 3/3, `PhotoApiTests` 14/14, `PhotoImageProcessorTests` 4/4, `ProfileDiscoveryApiTests` 17/17, `Phase4UpgradeMigrationTests` 1/1.
+- Flutter: `flutter analyze` on the touched paths exit 0, no issues. Full `flutter test` exit 0, 91 passed. Targeted: `pritimitra_api_client_test` 6/6, `profile_photo_api_test` and `profile_photo_controller_test` pass, `profile_discovery_api_test` 14/14.
+- Web (at `394b889`; no web changes since): `npm test` 99/99, `tsc --noEmit` exit 0, lint 0 warnings, `npm run build` exit 0.
+- Terraform (from `infra/terraform`): `fmt -check -recursive` exit 0, `init -backend=false` exit 0, `validate` exit 0, `test` 6 passed, 0 failed.
+- Not run: browser or device exercise of the photo flows, Figma screenshot comparison, live S3, Cognito, and `terraform apply`. These need explicit authorization or an available device.
 

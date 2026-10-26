@@ -64,11 +64,11 @@ Account states are explicit and must not be inferred only from whether Cognito a
 - **Mobile authentication and product calls:** Flutter uses Amplify Cognito for authentication and sends the access token when calling protected backend APIs.
 - **Backend authorization:** Spring Security validates access tokens, then application services enforce account state, ownership, consent, and endpoint-specific access rules. Client-side checks are for UX only and are not security controls.
 - **Database:** The backend reads its datasource from `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. Flyway applies migrations at startup.
-- **Phase boundary:** Phase 3 authentication/account-lifecycle foundations exist in the repository, but the end-to-end onboarding UI is not complete. Phase 4 is in progress on draft PR #5; the backend profile, discovery, likes, and photo APIs are implemented, while the Flutter and web photo UI are not.
+- **Phase boundary:** Phase 3 authentication/account-lifecycle foundations exist in the repository, but the end-to-end onboarding UI is not complete. Phase 4 is in progress on draft PR #5. The backend profile, discovery, likes, and photo APIs, plus Flutter and web profile, discovery, and photo UI, are implemented and unit-tested. Live S3/Cognito and device or browser validation are not done.
 
 ## Profiles, photos, privacy, and discovery (Phase 4, in progress)
 
-This section records the Phase 4 requirements and the current state. Implemented items are listed in `docs/project-status.md`. Photo management UI on Flutter and web is not yet implemented. Gender and interest preferences are not enforced, because gender identity is free text.
+This section records the Phase 4 requirements and the current state. Implemented items are listed in `docs/project-status.md`. Gender and interest preferences are not enforced, because gender identity is free text.
 
 ### Profile APIs and privacy
 
