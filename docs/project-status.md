@@ -111,7 +111,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - **Draft stacked PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6)
 - Branch: `feature/phase-5-matching-messaging`; base: Phase 4 branch until PR #5 merges.
 - The branch implements reciprocal-like matching, unmatch, participant-only text conversations, idempotent messages, cursor catch-up with bounded polling, blocks/unblocks, private reports and in-app notifications.
-- The block/send serialization fix and a PostgreSQL-backed regression test are included in the current branch. Check GitHub Actions on the latest head before treating the new test as passed.
+- The block/send serialization fix and PostgreSQL-backed regression test are included in the current branch. On head `5537a7570bbbfb6b02173f2aa090b031e5249060`, Backend CI passed (102 tests, 0 failures) and Web CI passed; Flutter analysis/tests passed and the release web build was still running at the latest check.
 - Open gates: final CI confirmation on the latest head, browser/device acceptance, live Cognito/AWS validation and follow-up choices for SSE and push/email delivery. Moderation review tooling is a later Phase 7 item.
 - PR #6 must not merge to `main` while it is stacked on unmerged PR #5. Retarget and re-run CI after Phase 4 merges.
 
