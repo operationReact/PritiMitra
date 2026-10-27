@@ -80,7 +80,7 @@ class BlindDateService {
                        OR (l.from_user_id = b.user_id AND l.to_user_id = :viewer))
                   AND NOT EXISTS (SELECT 1 FROM profile_match m WHERE m.status = 'ACTIVE'
                     AND ((m.user_low_id = :viewer AND m.user_high_id = b.user_id)
-                      OR (m.user_low_id = b.user_id AND m.user_high_id = :viewer))
+                      OR (m.user_low_id = b.user_id AND m.user_high_id = :viewer)))
                   ORDER BY b.created_at, b.id LIMIT 1 FOR UPDATE OF b SKIP LOCKED
                 """).param("startsAt", startsAt).param("viewer", viewer)
                 .query((rs,n) -> new Candidate(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class))).optional();
