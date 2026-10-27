@@ -137,10 +137,13 @@ class ModerationService {
             if (report.postId() == null) {
                 throw invalid("The reported post is no longer available");
             }
-            jdbc.sql("""
+            int rows = jdbc.sql("""
                     UPDATE community_post SET status = 'HIDDEN', updated_at = clock_timestamp()
                     WHERE id = :id AND status <> 'REMOVED'
                     """).param("id", report.postId()).update();
+            if (rows == 0) {
+                throw invalid("The reported post is no longer available");
+            }
             eventType = "COMMUNITY_POST_HIDDEN";
         } else if ("HIDE_PROFILE".equals(decision)) {
             if (report.reportedUserId() == null) {

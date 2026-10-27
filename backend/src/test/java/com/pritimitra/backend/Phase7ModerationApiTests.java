@@ -43,6 +43,7 @@ class Phase7ModerationApiTests {
     void onlyCognitoModeratorsCanAccessTheQueueOrMakeDecisions() throws Exception {
         String reporter = eligibleUser("Reporter");
         String target = eligibleUser("Target");
+        makeDiscoverable(target);
         String reportId = createProfileReport(reporter, publicIdOf(target));
 
         mvc.perform(get("/api/v1/moderation/reports").with(auth(reporter)))
@@ -106,6 +107,7 @@ class Phase7ModerationApiTests {
     void suspensionRequiresAReasonAndHideActionsMustMatchTheReportedTarget() throws Exception {
         String reporter = eligibleUser("Reporter");
         String target = eligibleUser("Target");
+        makeDiscoverable(target);
         String reportId = createProfileReport(reporter, publicIdOf(target));
         JwtRequestPostProcessor moderator = moderator("moderator-" + UUID.randomUUID());
 
@@ -122,6 +124,12 @@ class Phase7ModerationApiTests {
         assertEquals("SUSPENDED", jdbc.sql("SELECT status FROM app_user WHERE cognito_sub=:sub").param("sub", target).query(String.class).single());
         assertEquals("ACCOUNT_SUSPENDED", jdbc.sql("SELECT event_type FROM safety_audit_event WHERE report_public_id=:id")
                 .param("id", UUID.fromString(reportId)).query(String.class).single());
+    }
+
+    private void makeDiscoverable(String sub) throws Exception {
+        mvc.perform(put("/api/v1/profile/discoverability").with(auth(sub))
+                .contentType("application/json").content("{\"discoverable\":true}"))
+                .andExpect(status().isOk());
     }
 
     private String createProfileReport(String reporter, String targetProfileId) throws Exception {
