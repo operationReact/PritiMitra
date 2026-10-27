@@ -8,7 +8,7 @@ Flutter, Next.js, Spring Boot, PostgreSQL/Flyway, Docker Compose, and CI foundat
 
 ## Phase 2 — Design system and rich UI
 
-Status: in progress; visual parity has not been confirmed.
+Status: foundation merged to `main` via PR #2; visual parity against approved Figma frames remains unconfirmed.
 
 - Establish semantic color, spacing, radius, typography, motion, and accessibility tokens.
 - Implement the responsive marketing landing page against the approved Figma desktop and mobile landing frames.
@@ -48,7 +48,7 @@ Review likely costs before authorizing provisioning, including Cognito usage, SE
 
 ## Phase 4 — Profiles and discovery
 
-Status: **planned; implementation has not started.** Start feature work on a branch from the latest `main` only after checking the remaining Phase 3 dependencies. Do not describe planned behavior below as shipped functionality.
+Status: **in progress in draft PR #5; not merged to `main`.** The implementation is on `feature/phase-4-profiles-discovery`, with backend, Flutter, web and photo-bucket Terraform changes. Automated CI passed on the latest verified Phase 4 head. Live Cognito/S3 integration, backend runtime IAM, shared-database V6 preflight, authenticated browser/device tests, and Figma visual comparison remain open. See [PR #5](https://github.com/operationReact/PritiMitra/pull/5). Do not describe this branch as shipped functionality.
 
 ### Scope
 
@@ -76,7 +76,9 @@ Status: **planned; implementation has not started.** Start feature work on a bra
 
 ## Phase 5 — Matching and messaging
 
-Transactional match creation, conversation APIs, reliable message persistence, real-time delivery, notification jobs, and block/report integration.
+Status: **in progress in draft stacked PR #6; not merged.** The branch `feature/phase-5-matching-messaging` is based on Phase 4 branch `feature/phase-4-profiles-discovery`; do not retarget to `main` until PR #5 has merged. Implemented on the branch: reciprocal-like matching, unmatch, participant-only conversations, persisted idempotent text messaging, cursor-based polling/catch-up, block/unblock, private reports, and in-app notifications. Latest change adds conversation-row locking to serialize blocking with message sends plus a PostgreSQL-backed regression test. On head `5537a7570bbbfb6b02173f2aa090b031e5249060`, Backend CI passed (102 tests, 0 failures), Web CI passed, and Flutter mobile CI passed (analysis, tests, and Flutter web release build all completed successfully). Browser/device and live AWS/Cognito tests remain open. See [PR #6](https://github.com/operationReact/PritiMitra/pull/6) and [Phase 5 technical notes](https://github.com/operationReact/PritiMitra/blob/feature/phase-5-matching-messaging/docs/phase-5-matching-messaging.md).
+
+Planned scope: transactional match creation, conversation APIs, reliable message persistence, real-time or near-real-time delivery, notification jobs, and block/report integration.
 
 ## Phase 6 — Blind Date and community
 

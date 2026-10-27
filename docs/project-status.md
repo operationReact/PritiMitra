@@ -6,7 +6,7 @@ Status: complete and merged to `main` via PR #1.
 GitHub Actions for Flutter, Web, and Backend all passed on the Phase 1 head. Local build results were recorded by the implementation session and were not independently rerun during this Phase 2 task.
 
 ## Phase 2 — Design system and rich UI
-Status: implementation in progress on `feature/phase-2-rich-design-system`.
+Status: foundation merged to `main` via PR #2. Visual parity against the approved Figma frames remains unverified.
 
 ### Implemented in this change
 - Expanded Flutter semantic colors and added shared spacing/radius tokens.
@@ -24,11 +24,11 @@ Status: implementation in progress on `feature/phase-2-rich-design-system`.
 - Authentication and app-store download links are not wired; CTAs clearly show that they are not ready.
 - The hero phone/profile artwork is composed from CSS shapes and Flutter shapes; it is illustrative UI, not a live profile or a downloaded Figma vector asset.
 
-### Next task
-Run branch CI to completion, fix build/test issues, then inspect rendered screenshots at mobile, tablet, and desktop breakpoints against Figma and tune geometry before marking Phase 2 complete.
+### Remaining acceptance work
+Inspect rendered screenshots at mobile, tablet, and desktop breakpoints against the approved Figma frames and tune geometry. PR #2 is merged, but visual parity is not claimed until that comparison is complete.
 
 ## Phase 3 — Authentication and onboarding (AWS-native)
-Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and pushed to origin; no PR has been opened or merged. Not production-ready.
+Status: the authentication/onboarding foundation was merged to `main` via PR #3. Phase 3 remains incomplete and is not production-ready.
 
 ### Implemented
 - Backend (Spring Boot): Cognito JWT resource server; account states `PENDING_EMAIL_VERIFICATION`, `ONBOARDING_INCOMPLETE`, `ACTIVE`, `INELIGIBLE`, `SUSPENDED`; enum interested-in set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`, mutually exclusive); append-only consents with configurable draft legal versions; ineligible-account retention purge (scheduled, deletes the Cognito identity first).
@@ -36,7 +36,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Mobile (Flutter): `amplify_auth_cognito` integration, route guard, and an API client. Amplify keeps tokens in native secure storage (`amplify_secure_storage` is resolved in `pubspec.lock`).
 - Infrastructure (`infra/terraform/`): Cognito user pool with a mobile SRP app client and a web password app client (both refresh rotation enabled, 60-minute access tokens, 30-day refresh, configurable grace period), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
 
-### Pre-PR review (this change)
+### Implementation and review history (PR #3)
 - Backend `mvnw.cmd -B verify`: 27 tests passed (adds LegalPropertiesTests 4).
 - Web, Flutter, and Terraform results above were re-run on the current tree; only backend code changed afterwards.
 - Fixed: the legal guard defaulted to off, so drafts were accepted in production. It now defaults to `true` (fail closed). Local `.env.example` sets `false`, and Maven surefire sets `false` for tests.
@@ -73,7 +73,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 
 ### Not done or outstanding
 - Web onboarding and auth pages (Step 1 web half), Step 2 remaining auth screens, and Step 3 permission/error states are not implemented.
-- Phase 4 (profiles, photos, discovery, likes) has been specified but not started. It depends on the Phase 3 onboarding being complete.
+- Phase 4 implementation is in draft PR #5 on `feature/phase-4-profiles-discovery`; it is not merged to `main`. Profiles, privacy controls, photo management, discovery pagination and likes/unlikes are implemented on that branch. Live AWS/Cognito, runtime IAM, shared-database V6 preflight, authenticated device/browser flows and Figma visual parity remain unverified. See [PR #5](https://github.com/operationReact/PritiMitra/pull/5).
 - Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
 - SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
 - Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
@@ -81,8 +81,8 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Live Cognito sign-up/verification/refresh-rotation tests need a development user pool.
 - Cost considerations before provisioning: ECS Fargate, RDS, ALB, NAT gateway, SES, and Cognito pricing by MAU.
 
-### Next task
-Complete the remaining Phase 3 automated checks (backend env example, docs). Then request authorization for a development AWS environment after reviewing the cost list. DNS records stay un-created per your instruction. Keep Terraform plan/apply blocked until a dev environment is authorized.
+### Remaining Phase 3 release gates
+Complete the outstanding web authentication/onboarding routes and end-to-end acceptance. Validate Cognito sign-up, verification, recovery, refresh rotation and user deletion against an authorized development user pool. Review AWS costs and obtain explicit authorization before provisioning. Keep Terraform apply, DNS changes and live sending blocked until authorized and configured.
 
 ### Proposed DNS records (awaiting authorization; not created)
 | Purpose | Type | Name | Value |
@@ -93,3 +93,28 @@ Complete the remaining Phase 3 automated checks (backend env example, docs). The
 | Custom MAIL FROM SPF | TXT | `bounce.mail.pritimitra.com` | `v=spf1 include:amazonses.com -all` |
 
 Set `manage_dns_records = true` and `route53_zone_id` only after authorization. Run `terraform output ses_dns_records_required` to get the exact token values.
+
+
+## Current implementation status (verified 2026-10-27)
+
+### Phase 4 — Profiles, privacy, photos and discovery
+
+- **Draft PR #5:** [Phase 4 implementation](https://github.com/operationReact/PritiMitra/pull/5)
+- Branch: `feature/phase-4-profiles-discovery`; head: `41e298897d81c65c55a30b1679b2bfdeb4b5c198`.
+- Backend, web and Flutter CI passed on that exact head.
+- The branch includes profile management, discoverability, cursor-paginated discovery, directional likes, private photo APIs and the private S3 bucket Terraform definition.
+- Open gates: runtime IAM role/compute architecture, authorized live Cognito/S3 testing, running the read-only V6 preflight on target databases, authenticated browser/device tests, Figma visual comparison, and explicit product decisions for any future gender/interest compatibility filters.
+- PR #5 remains a draft and is not merged. No AWS resources have been provisioned and no deployment has occurred.
+
+### Phase 5 — Matching, messaging, notifications and safety
+
+- **Draft stacked PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6)
+- Branch: `feature/phase-5-matching-messaging`; base: Phase 4 branch until PR #5 merges.
+- The branch implements reciprocal-like matching, unmatch, participant-only text conversations, idempotent messages, cursor catch-up with bounded polling, blocks/unblocks, private reports and in-app notifications.
+- The block/send serialization fix and PostgreSQL-backed regression test are included in the current branch. On head `5537a7570bbbfb6b02173f2aa090b031e5249060`, Backend CI passed (102 tests, 0 failures), Web CI passed, and Flutter mobile CI passed (analysis, tests, and Flutter web release build all completed successfully).
+- Open gates: final CI confirmation on the latest head, browser/device acceptance, live Cognito/AWS validation and follow-up choices for SSE and push/email delivery. Moderation review tooling is a later Phase 7 item.
+- PR #6 must not merge to `main` while it is stacked on unmerged PR #5. Retarget and re-run CI after Phase 4 merges.
+
+### Repository-wide release boundary
+
+Green unit tests and CI do not prove deployed AWS behavior, approved production legal configuration, or authenticated end-to-end product readiness. No Terraform apply, DNS mutation, live AWS provisioning or production deployment has been performed.
