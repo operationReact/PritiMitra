@@ -39,6 +39,16 @@ class HomeScreen extends ConsumerWidget {
           child: const Text('My profile'),
         ),
         const SizedBox(height: AppSpacing.xs),
+        OutlinedButton(
+          onPressed: () => context.go(AppRoutes.community),
+          child: const Text('Community'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        OutlinedButton(
+          onPressed: () => context.go(AppRoutes.blindDate),
+          child: const Text('Blind Date'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         TextButton(
           onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
           child: const Text('Sign out'),

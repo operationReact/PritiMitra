@@ -207,3 +207,37 @@ describe("messaging and safety routes", () => {
   });
 });
 
+
+
+describe("Phase 6 community and Blind Date proxy policy", () => {
+  const group = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  const post = "8f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  const optIn = "9f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  it("allows only explicit community routes and resource methods", () => {
+    expect(resolveBackendPath("GET", ["v1", "community", "groups"])).toBe("/api/v1/community/groups");
+    expect(resolveBackendPath("PUT", ["v1", "community", "groups", group, "membership"])).toBe("/api/v1/community/groups/" + group + "/membership");
+    expect(resolveBackendPath("DELETE", ["v1", "community", "groups", group, "membership"])).toBe("/api/v1/community/groups/" + group + "/membership");
+    expect(resolveBackendPath("GET", ["v1", "community", "groups", group, "posts"])).toBe("/api/v1/community/groups/" + group + "/posts");
+    expect(resolveBackendPath("POST", ["v1", "community", "groups", group, "posts"])).toBe("/api/v1/community/groups/" + group + "/posts");
+    expect(resolveBackendPath("PUT", ["v1", "community", "posts", post, "reaction"])).toBe("/api/v1/community/posts/" + post + "/reaction");
+    expect(resolveBackendPath("DELETE", ["v1", "community", "posts", post])).toBe("/api/v1/community/posts/" + post);
+    expect(resolveBackendPath("POST", ["v1", "community", "groups", "bad-id", "posts"])).toBeNull();
+    expect(resolveBackendPath("PATCH", ["v1", "community", "groups", group, "posts"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "community", "posts", post, "reaction"])).toBeNull();
+  });
+  it("allows only expected Blind Date opt-in and session methods", () => {
+    expect(resolveBackendPath("GET", ["v1", "blind-dates", "my"])).toBe("/api/v1/blind-dates/my");
+    expect(resolveBackendPath("POST", ["v1", "blind-dates", "opt-ins"])).toBe("/api/v1/blind-dates/opt-ins");
+    expect(resolveBackendPath("DELETE", ["v1", "blind-dates", "opt-ins", optIn])).toBe("/api/v1/blind-dates/opt-ins/" + optIn);
+    expect(resolveBackendPath("DELETE", ["v1", "blind-dates", "sessions", optIn])).toBe("/api/v1/blind-dates/sessions/" + optIn);
+    expect(resolveBackendPath("GET", ["v1", "blind-dates", "opt-ins"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "blind-dates", "sessions", "not-a-uuid"])).toBeNull();
+  });
+  it("allows only cursor and bounded page size for community feeds", () => {
+    const path = "/api/v1/community/groups/" + group + "/posts";
+    expect(resolveBackendQuery(path, new URLSearchParams("cursor=abc_-1&size=20"))).toBe("cursor=abc_-1&size=20");
+    expect(resolveBackendQuery(path, new URLSearchParams("size=51"))).toBeNull();
+    expect(resolveBackendQuery(path, new URLSearchParams("admin=true"))).toBeNull();
+    expect(resolveBackendQuery(path, new URLSearchParams("cursor=a&cursor=b"))).toBeNull();
+  });
+});

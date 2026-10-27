@@ -80,7 +80,17 @@ Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6
 
 ## Phase 6 — Blind Date and community
 
-Opt-in Blind Date flows, scheduling, community feed, groups, reactions, and moderation.
+Status: **in progress in draft PR #8** on `feature/phase-6-blind-date-community`.
+
+Implemented in this slice:
+- Additive Flyway V10 schema for Blind Date opt-ins/pairings, curated groups, posts, reactions and private community-post reporting.
+- Backend opt-in scheduling and cancellation APIs. Pairing occurs only when two eligible, unblocked users independently choose the same aligned slot.
+- Backend community groups, explicit memberships, member-only paginated plain-text feeds, post removal and LIKE/HEART/SUPPORT reactions.
+- Private report submission for community posts, reusing the existing safety report flow.
+- Web pages `/community` and `/blind-date`, with BFF route/query allow-lists and tests.
+- Flutter Community and Blind Date screens with protected routes from the active-account home.
+
+Automated Backend, Web and Flutter workflows have been triggered for the latest branch head; outcomes are being checked. Remaining: fix any CI findings, expand client/controller tests, refine UX/accessibility, and add the staff moderation/review queue in Phase 7. No AWS provisioning, Terraform apply, DNS change or deployment is part of this PR.
 
 ## Phase 7 — Trust and safety
 

@@ -238,3 +238,15 @@ Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main
 
 ### Repository-wide release boundary
 Green unit tests and CI do not prove deployed AWS behavior, approved production legal configuration, or authenticated end-to-end product readiness. No Terraform apply, DNS mutation, live AWS provisioning or production deployment has been performed.
+
+
+## Phase 6 — Blind Date and community (in progress; draft PR #8)
+
+- PR: https://github.com/operationReact/PritiMitra/pull/8
+- Branch: `feature/phase-6-blind-date-community`
+- Backend: additive V10 migration; opt-in Blind Date slot validation, same-slot pairing and future-session cancellation; four seeded communities; membership, member-only paginated feed, reactions, own-post removal and private post reports.
+- Web: `/community` and `/blind-date`; BFF allow-list only permits the exact Phase 6 endpoint shapes and bounded community-feed query keys.
+- Flutter: Community and Blind Date screens linked from the active-account home; explicit membership controls, post/reaction/report actions, slot opt-in and cancellation.
+- A backend CI failure on an earlier head exposed Java UUID ordering not matching PostgreSQL's UUID comparison for a pair constraint. Updated pairing to use PostgreSQL `LEAST/GREATEST` so stored user order uses the same comparison semantics; latest workflows are running and must pass before this PR is ready.
+- Remaining: confirm all latest CI checks, authenticated browser/device acceptance and user-facing polish. Community reports are private pending reports; staff moderation tooling remains Phase 7 scope.
+- No AWS resources, Terraform apply, DNS changes or deployment have occurred.

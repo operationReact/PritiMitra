@@ -76,6 +76,34 @@ function isMessagingTarget(method: BackendMethod, segments: readonly string[]): 
 }
 
 
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Exact Phase 6 route shapes; all IDs are UUIDs and the rest of the proxy remains default-deny. */
+function isPhase6Target(method: BackendMethod, segments: readonly string[]): boolean {
+  if (segments[0] !== "v1" || segments.length < 3) return false;
+  if (segments[1] === "community") {
+    if (segments.length === 3 && segments[2] === "groups") return method === "GET";
+    if (segments[2] === "groups" && UUID_PATTERN.test(segments[3] ?? "")) {
+      if (segments.length === 5 && segments[4] === "membership") return method === "PUT" || method === "DELETE";
+      if (segments.length === 5 && segments[4] === "posts") return method === "GET" || method === "POST";
+    }
+    if (segments[2] === "posts" && UUID_PATTERN.test(segments[3] ?? "")) {
+      if (segments.length === 4) return method === "DELETE";
+      if (segments.length === 5 && segments[4] === "reaction") return method === "PUT" || method === "DELETE";
+    }
+    return false;
+  }
+  if (segments[1] === "blind-dates") {
+    if (segments.length === 3 && segments[2] === "my") return method === "GET";
+    if (segments.length === 3 && segments[2] === "opt-ins") return method === "POST";
+    if (segments.length === 4 && UUID_PATTERN.test(segments[3] ?? "")) {
+      if (segments[2] === "opt-ins" || segments[2] === "sessions") return method === "DELETE";
+    }
+  }
+  return false;
+}
+
 /**
  * Maps catch-all segments (for example ["v1", "me"]) to an upstream path under /api/v1/.
  * Segments must be plain tokens, which rejects encoded slashes, dot segments and query-like input.
@@ -102,7 +130,7 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   if (isLikeTarget) {
     return path;
   }
-  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) ? path : null;
+  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) || isPhase6Target(method, segments) ? path : null;
 }
 
 /** True for the photo content path, whose successful response is an image body rather than JSON. */
@@ -145,6 +173,7 @@ function queryRulesFor(path: string): Readonly<Record<string, RegExp>> {
   if (MESSAGE_HISTORY_PATH.test(path) || MESSAGE_NEWER_PATH.test(path)) {
     return PAGED_RULES;
   }
+  if (/^\/api\/v1\/community\/groups\/[0-9a-f-]{36}\/posts$/i.test(path)) return PAGED_RULES;
   return QUERY_RULES[path] ?? {};
 }
 
