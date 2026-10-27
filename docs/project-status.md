@@ -1,5 +1,11 @@
 # Project Status
 
+## Current delivery checkpoint (2026-10-27)
+
+- PR #5 Phase 4, PR #6 Phase 5, and PR #8 Phase 6 are merged to main.
+- Phase 7 moderator queue and audit implementation is in PR #10; AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
+- No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
+
 ## Phase 1 — Engineering foundation
 Status: complete and merged to `main` via PR #1.
 
@@ -250,3 +256,8 @@ Green unit tests and CI do not prove deployed AWS behavior, approved production 
 - A backend CI failure on an earlier head exposed Java UUID ordering not matching PostgreSQL's UUID comparison for a pair constraint. Updated pairing to use PostgreSQL `LEAST/GREATEST` so stored user order uses the same comparison semantics; latest workflows are running and must pass before this PR is ready.
 - Remaining: confirm all latest CI checks, authenticated browser/device acceptance and user-facing polish. Community reports are private pending reports; staff moderation tooling remains Phase 7 scope.
 - No AWS resources, Terraform apply, DNS changes or deployment have occurred.
+
+
+## Phase 7 — Trust and safety (initial moderation slice)
+
+Status: in progress in PR #10. Backend and web support a Cognito-group-gated report queue, audited dismiss/hide/suspend actions, and an append-only audit log. The backend requires the verified cognito:groups claim to include PritiMitraModerators; the web URL is not an access control. V11 is additive and does not modify V1–V10. No Cognito group was created, no AWS infrastructure was provisioned, and no live account or DNS operation was performed. Account deletion, optional consent withdrawal, rate limits/abuse prevention and fuller audit-history operations remain outstanding. See docs/phase-7-trust-safety.md.

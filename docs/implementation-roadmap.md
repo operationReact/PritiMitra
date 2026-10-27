@@ -76,25 +76,24 @@ Status: **merged to `main` via PR #5; implementation complete for this phase's c
 
 ## Phase 5 — Matching and messaging
 
-Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6 now targeting `main`.** Current scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports and in-app notifications. Backend CI (102 tests), Web CI, and Flutter CI passed on head `5537a7570bbbfb6b02173f2aa090b031e5249060`; verify CI on the latest base-sync commit before merging. Browser/device acceptance, live AWS/Cognito validation, and moderation tooling remain outstanding; moderation review is Phase 7 scope.
+Status: **merged to main via PR #6.** Scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports and in-app notifications. Browser/device acceptance and live AWS/Cognito validation remain outstanding.
 
 ## Phase 6 — Blind Date and community
 
-Status: **in progress in draft PR #8** on `feature/phase-6-blind-date-community`.
+Status: merged to main via PR #8.
 
-Implemented in this slice:
+Implemented:
 - Additive Flyway V10 schema for Blind Date opt-ins/pairings, curated groups, posts, reactions and private community-post reporting.
 - Backend opt-in scheduling and cancellation APIs. Pairing occurs only when two eligible, unblocked users independently choose the same aligned slot.
 - Backend community groups, explicit memberships, member-only paginated plain-text feeds, post removal and LIKE/HEART/SUPPORT reactions.
-- Private report submission for community posts, reusing the existing safety report flow.
-- Web pages `/community` and `/blind-date`, with BFF route/query allow-lists and tests.
-- Flutter Community and Blind Date screens with protected routes from the active-account home.
-
-Automated Backend, Web and Flutter workflows have been triggered for the latest branch head; outcomes are being checked. Remaining: fix any CI findings, expand client/controller tests, refine UX/accessibility, and add the staff moderation/review queue in Phase 7. No AWS provisioning, Terraform apply, DNS change or deployment is part of this PR.
+- Web pages at /community and /blind-date, and Flutter Community and Blind Date screens.
+- Backend, Web and Flutter CI passed on the Phase 6 head. Live cloud/device validation remains outstanding.
 
 ## Phase 7 — Trust and safety
 
-Reporting queues, abuse prevention, consent controls, account deletion, audit events, and operational review tooling.
+Status: in progress; the initial moderation queue and audited review actions are in PR #10. See docs/phase-7-trust-safety.md.
+
+This slice adds moderator-only report review, content/profile hiding, account suspension with a required reason, and append-only audit events. Remaining Phase 7 scope includes account deletion, consent withdrawal controls, abuse/rate limits and operational audit-history procedures. No AWS resources or DNS records are created.
 
 ## Phase 8 — Responsive web product experience
 

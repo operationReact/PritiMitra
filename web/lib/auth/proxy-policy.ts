@@ -20,6 +20,7 @@ const ALLOWED_ROUTES: readonly AllowedRoute[] = [
   { method: "GET", path: "/api/v1/notifications" },
   { method: "PUT", path: "/api/v1/notifications/read-all" },
   { method: "POST", path: "/api/v1/reports" },
+  { method: "GET", path: "/api/v1/moderation/reports" },
 ];
 
 const SEGMENT_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
@@ -104,6 +105,17 @@ function isPhase6Target(method: BackendMethod, segments: readonly string[]): boo
   return false;
 }
 
+/** Exact moderation routes; backend authorization still verifies the Cognito group claim. */
+function isModerationTarget(method: BackendMethod, segments: readonly string[]): boolean {
+  if (segments[0] !== "v1" || segments[1] !== "moderation") return false;
+  if (segments.length === 3 && segments[2] === "reports") return method === "GET";
+  return segments.length === 5 &&
+    segments[2] === "reports" &&
+    UUID_PATTERN.test(segments[3] ?? "") &&
+    segments[4] === "decision" &&
+    method === "PUT";
+}
+
 /**
  * Maps catch-all segments (for example ["v1", "me"]) to an upstream path under /api/v1/.
  * Segments must be plain tokens, which rejects encoded slashes, dot segments and query-like input.
@@ -130,7 +142,7 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   if (isLikeTarget) {
     return path;
   }
-  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) || isPhase6Target(method, segments) ? path : null;
+  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) || isPhase6Target(method, segments) || isModerationTarget(method, segments) ? path : null;
 }
 
 /** True for the photo content path, whose successful response is an image body rather than JSON. */
@@ -167,6 +179,10 @@ const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = 
   "/api/v1/matches": PAGED_RULES,
   "/api/v1/conversations": PAGED_RULES,
   "/api/v1/notifications": PAGED_RULES,
+  "/api/v1/moderation/reports": {
+    ...PAGED_RULES,
+    status: /^(?:PENDING|ACTIONED|DISMISSED|ALL)$/,
+  },
 };
 
 function queryRulesFor(path: string): Readonly<Record<string, RegExp>> {
