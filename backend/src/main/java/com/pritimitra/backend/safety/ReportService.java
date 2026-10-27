@@ -39,7 +39,8 @@ public class ReportService {
 		}
 		return switch (targetType) {
 			case "PROFILE" -> reportProfile(viewerId, request.targetId(), category, details);
-			default -> reportMessage(viewerId, request.targetId(), category, details);
+			case "MESSAGE" -> reportMessage(viewerId, request.targetId(), category, details);
+			default -> reportCommunityPost(viewerId, request.targetId(), category, details);
 		};
 	}
 
@@ -111,6 +112,39 @@ public class ReportService {
 				""");
 	}
 
+	private ReportReceipt reportCommunityPost(UUID viewerId, UUID postPublicId, String category, String details) {
+		PostTarget target = jdbc.sql("""
+				SELECT p.id, p.author_id
+				FROM community_post p
+				JOIN community_group_member gm ON gm.group_id = p.group_id
+					AND gm.user_id = :viewer AND gm.status = 'ACTIVE'
+				WHERE p.public_id = :pid AND p.status = 'PUBLISHED'
+				  AND p.author_id IS NOT NULL
+				  AND NOT EXISTS (SELECT 1 FROM user_block b
+					  WHERE (b.blocker_id = :viewer AND b.blocked_id = p.author_id)
+					     OR (b.blocker_id = p.author_id AND b.blocked_id = :viewer))
+				""")
+				.param("viewer", viewerId).param("pid", postPublicId)
+				.query((rs, n) -> new PostTarget(rs.getObject("id", UUID.class), rs.getObject("author_id", UUID.class)))
+				.optional().orElseThrow(() -> targetNotFound());
+		if (target.authorId().equals(viewerId)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "CANNOT_REPORT_OWN_POST", "You cannot report your own community post");
+		}
+		Optional<UUID> inserted = jdbc.sql("""
+				INSERT INTO user_report (reporter_id, reported_user_id, target_type, target_post_id, category, details)
+				VALUES (:reporter, :reported, 'COMMUNITY_POST', :postId, :category, :details)
+				ON CONFLICT DO NOTHING RETURNING public_id
+				""")
+				.param("reporter", viewerId).param("reported", target.authorId())
+				.param("postId", target.postId(), Types.OTHER).param("category", category)
+				.param("details", details, Types.VARCHAR).query(UUID.class).optional();
+		UUID reportId = inserted.orElseGet(() -> jdbc.sql("""
+				SELECT public_id FROM user_report WHERE reporter_id = :reporter AND target_post_id = :postId
+				  AND target_type = 'COMMUNITY_POST' AND status = 'PENDING'
+				""").param("reporter", viewerId).param("postId", target.postId(), Types.OTHER).query(UUID.class).single());
+		return new ReportReceipt(reportId, "PENDING");
+	}
+
 	/**
 	 * Duplicate submissions return the existing open report, so retries are safe and the reporter cannot flood the
 	 * review queue with copies.
@@ -139,8 +173,8 @@ public class ReportService {
 			throw invalid("targetType is required");
 		}
 		String value = raw.trim().toUpperCase(Locale.ROOT);
-		if (!value.equals("PROFILE") && !value.equals("MESSAGE")) {
-			throw invalid("targetType must be PROFILE or MESSAGE");
+		if (!value.equals("PROFILE") && !value.equals("MESSAGE") && !value.equals("COMMUNITY_POST")) {
+			throw invalid("targetType must be PROFILE, MESSAGE or COMMUNITY_POST");
 		}
 		return value;
 	}
@@ -191,5 +225,8 @@ public class ReportService {
 	}
 
 	private record MessageTarget(UUID messageId, UUID senderId) {
+	}
+
+	private record PostTarget(UUID postId, UUID authorId) {
 	}
 }
