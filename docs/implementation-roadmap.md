@@ -8,7 +8,7 @@ Flutter, Next.js, Spring Boot, PostgreSQL/Flyway, Docker Compose, and CI foundat
 
 ## Phase 2 — Design system and rich UI
 
-Status: in progress; visual parity has not been confirmed.
+Status: foundation merged to `main` via PR #2; visual parity against approved Figma frames remains unconfirmed.
 
 - Establish semantic color, spacing, radius, typography, motion, and accessibility tokens.
 - Implement the responsive marketing landing page against the approved Figma desktop and mobile landing frames.
@@ -48,7 +48,7 @@ Review likely costs before authorizing provisioning, including Cognito usage, SE
 
 ## Phase 4 — Profiles and discovery
 
-Status: **in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Not complete.** Implemented and unit-tested: backend profile, privacy, discovery, likes, photo APIs and the V6 photo-type migration; Flutter profile, discovery and photo management (picker, upload, list, delete); web profile, discovery (with load-more), likes and photo management through the BFF; Terraform photo bucket. Deferred or blocked: gender and interest preference matching (not enforced, documented), the backend runtime IAM role (deployment dependency, not declared), live S3 and Cognito tests (need authorization), and device or browser validation of the photo flows. See `docs/project-status.md` for the verified evidence.
+Status: **merged to `main` via PR #5; implementation complete for this phase's committed scope, but not production-ready.** Implemented and unit-tested: backend profile, privacy, discovery, likes, photo APIs and the V6 photo-type migration; Flutter profile, discovery and photo management (picker, upload, list, delete); web profile, discovery (with load-more), likes and photo management through the BFF; Terraform photo bucket. Deferred or blocked: gender and interest preference matching (not enforced), backend runtime IAM, live S3/Cognito tests, shared-database V6 preflight, authenticated browser/device checks, and Figma visual comparison. See `docs/project-status.md` and `docs/phase-4-release-gate.md`.
 
 ### Scope
 
@@ -76,7 +76,7 @@ Status: **in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Not
 
 ## Phase 5 — Matching and messaging
 
-Transactional match creation, conversation APIs, reliable message persistence, real-time delivery, notification jobs, and block/report integration.
+Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6.** Current scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports, and in-app notifications. Backend CI (102 tests), Web CI, and Flutter CI passed on head `5537a7570bbbfb6b02173f2aa090b031e5249060`; retarget to `main` after Phase 4 and verify CI again. Browser/device acceptance, live AWS/Cognito validation, and moderation tooling remain outstanding; moderation review is Phase 7 scope.
 
 ## Phase 6 — Blind Date and community
 
