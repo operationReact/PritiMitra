@@ -60,4 +60,15 @@ public final class OnboardingDtos {
 	/** Editable profile fields saved so far, used to resume onboarding without losing earlier input. */
 	public record ProfileResponse(String displayName, String bio, String profilePrompt, Set<ConnectionGoal> goals) {
 	}
+
+	/** The owner's own profile. Never includes date of birth, email, identity keys or consent history. */
+	public record OwnProfileResponse(UUID publicId, String displayName, String bio, String profilePrompt,
+			String genderIdentity, boolean genderIdentityVisible, String pronouns, boolean pronounsVisible,
+			String sexualOrientation, boolean sexualOrientationVisible, Set<ConnectionGoal> goals,
+			Set<String> interests, Set<DiscoveryInterest> discoveryInterestedIn, Integer discoveryMinAge,
+			Integer discoveryMaxAge, Integer discoveryMaxDistanceKm, boolean discoverable) {
+	}
+
+	public record DiscoverabilityRequest(@NotNull Boolean discoverable) {
+	}
 }

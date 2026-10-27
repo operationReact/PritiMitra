@@ -46,7 +46,9 @@ void main() {
     });
 
     test('non-active accounts cannot reach home or public auth pages', () {
-      const pending = AuthSignedIn(status: AccountStatus.pendingEmailVerification);
+      const pending = AuthSignedIn(
+        status: AccountStatus.pendingEmailVerification,
+      );
       expect(
         redirectForAccess(location: AppRoutes.home, state: pending),
         AppRoutes.accountStatus,
@@ -67,7 +69,10 @@ void main() {
 
     test('unknown status shows account status with retry', () {
       expect(
-        redirectForAccess(location: AppRoutes.home, state: const AuthSignedIn()),
+        redirectForAccess(
+          location: AppRoutes.home,
+          state: const AuthSignedIn(),
+        ),
         AppRoutes.accountStatus,
       );
     });
@@ -98,7 +103,43 @@ void main() {
         redirectForAccess(location: AppRoutes.signIn, state: active),
         AppRoutes.home,
       );
-      expect(redirectForAccess(location: AppRoutes.home, state: active), isNull);
+      expect(
+        redirectForAccess(location: AppRoutes.home, state: active),
+        isNull,
+      );
+    });
+
+    test('active users can open discovery and profile', () {
+      const active = AuthSignedIn(status: AccountStatus.active);
+      expect(
+        redirectForAccess(location: AppRoutes.discover, state: active),
+        isNull,
+      );
+      expect(
+        redirectForAccess(location: AppRoutes.profile, state: active),
+        isNull,
+      );
+    });
+
+    test('non-active users cannot open discovery or profile', () {
+      const pending = AuthSignedIn(
+        status: AccountStatus.pendingEmailVerification,
+      );
+      const suspended = AuthSignedIn(status: AccountStatus.suspended);
+      for (final state in [pending, suspended]) {
+        expect(
+          redirectForAccess(location: AppRoutes.discover, state: state),
+          isNot(isNull),
+        );
+        expect(
+          redirectForAccess(location: AppRoutes.profile, state: state),
+          isNot(isNull),
+        );
+      }
+      expect(
+        redirectForAccess(location: AppRoutes.profile, state: signedOut),
+        AppRoutes.signIn,
+      );
     });
   });
 }

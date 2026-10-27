@@ -150,7 +150,7 @@ class OnboardingApiTests {
 		mvc.perform(post("/api/v1/onboarding/complete").with(auth(sub)));
 
 		mvc.perform(get("/api/v1/discovery").with(auth(sub)))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isOk());
 		mvc.perform(get("/api/v1/me").with(auth(sub)))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("\"status\":\"ACTIVE\"")));
 	}

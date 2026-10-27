@@ -16,6 +16,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>pritimitra</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PritiMitra uses your photo library only when you choose a profile photo to upload.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

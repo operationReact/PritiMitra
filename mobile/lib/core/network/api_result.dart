@@ -26,8 +26,10 @@ final class ApiForbidden<T> extends ApiResult<T> {
 }
 
 /// Network failure, timeout, 5xx, or a response the client cannot interpret.
+/// [code] carries a business code for other non-success responses, such as `PROFILE_INCOMPLETE` (409).
 final class ApiUnavailable<T> extends ApiResult<T> {
-  const ApiUnavailable({this.statusCode});
+  const ApiUnavailable({this.statusCode, this.code});
 
   final int? statusCode;
+  final String? code;
 }

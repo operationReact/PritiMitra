@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AuthConfigError, isProductionRuntime } from "./config";
-import { checkStateChange } from "./origin";
+import { checkStateChange, type AcceptedBodyType } from "./origin";
 import { errorName, mapCognitoError, type AuthErrorCode, type AuthOperation } from "./errors";
 import { setSessionCookies, type CookieWriter } from "./session";
 
@@ -37,8 +37,11 @@ export function failureResponse(
 }
 
 /** Returns an error response when the request fails the CSRF gate, or null when it may proceed. */
-export function rejectUnsafeRequest(request: Request): NextResponse | null {
-  const result = checkStateChange(request.headers, new URL(request.url).origin);
+export function rejectUnsafeRequest(
+  request: Request,
+  accepted: AcceptedBodyType = "application/json",
+): NextResponse | null {
+  const result = checkStateChange(request.headers, new URL(request.url).origin, accepted);
   if (result.ok) {
     return null;
   }
@@ -94,6 +97,38 @@ export async function readBoundedText(request: Request, maxBytes: number): Promi
     chunks.push(value);
   }
   return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+/** Reads a stream into memory, or returns null as soon as it exceeds maxBytes. */
+export async function readBoundedBytes(
+  stream: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!stream) {
+    return new Uint8Array(0);
+  }
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 /** Attaches refreshed or newly issued session cookies to a response. */

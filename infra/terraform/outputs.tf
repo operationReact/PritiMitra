@@ -56,6 +56,11 @@ output "ecr_repository_urls" {
   value       = { for key, repo in aws_ecr_repository.services : key => repo.repository_url }
 }
 
+output "profile_photo_bucket_name" {
+  description = "Private profile photo bucket. Set as PRITIMITRA_PHOTO_BUCKET for the API. The API role still needs s3:PutObject, GetObject and DeleteObject on this bucket."
+  value       = aws_s3_bucket.profile_photos.bucket
+}
+
 output "github_deploy_role_arn" {
   description = "IAM role assumed by GitHub Actions through OIDC."
   value       = aws_iam_role.github_deploy.arn
