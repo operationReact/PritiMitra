@@ -78,7 +78,7 @@ Status: **in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Not
 
 Transactional match creation, conversation APIs, reliable message persistence, real-time delivery, notification jobs, and block/report integration.
 
-Status: in progress on `feature/phase-5-matching-messaging` (stacked on Phase 4; draft PR, not merged). Backend, Flutter and web messaging are implemented and tested locally. Bounded polling is the delivery method. SSE, push/email delivery, and block/report from inside a conversation are open. Details and verification are in [phase-5-matching-messaging.md](./phase-5-matching-messaging.md).
+Status: in progress on `feature/phase-5-matching-messaging` (stacked on Phase 4; draft PR #6, not merged). Backend, Flutter and web messaging are implemented and tested locally. Bounded polling is the delivery method. Blocking from conversation screens is implemented; SSE, push/email delivery, and browser/device verification remain open. The block/send locking fix is covered by a PostgreSQL-backed regression test. Details and verification are in [phase-5-matching-messaging.md](./phase-5-matching-messaging.md).
 
 ## Phase 6 — Blind Date and community
 
