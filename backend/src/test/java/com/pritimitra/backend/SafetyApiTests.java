@@ -18,8 +18,16 @@ import com.pritimitra.backend.config.LegalProperties;
 import com.pritimitra.backend.identity.EmailVerificationChecker;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
@@ -42,6 +50,12 @@ class SafetyApiTests {
 	@Autowired
 	private LegalProperties legal;
 
+	@Autowired
+	private JdbcClient jdbc;
+
+	@Autowired
+	private PlatformTransactionManager transactionManager;
+
 	@MockitoBean
 	private EmailVerificationChecker emailVerification;
 
@@ -60,6 +74,76 @@ class SafetyApiTests {
 		mvc.perform(post(messagesUrl(conversation)).with(auth(a)).contentType("application/json")
 				.content(sendJson(UUID.randomUUID(), "hello")))
 				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void blockWaitsForConversationLockAndRejectsMessagesAfterCompletion() throws Exception {
+		String a = eligibleUser("Ada");
+		String b = eligibleUser("Ben");
+		String conversation = matchedConversation(a, b);
+		UUID conversationPublicId = UUID.fromString(conversation);
+		UUID conversationId = jdbc.sql("SELECT id FROM conversation WHERE public_id = :pid")
+				.param("pid", conversationPublicId)
+				.query(UUID.class)
+				.single();
+
+		CountDownLatch lockHeld = new CountDownLatch(1);
+		CountDownLatch releaseLock = new CountDownLatch(1);
+		ExecutorService pool = Executors.newFixedThreadPool(2);
+		try {
+			Future<?> holder = pool.submit(() -> new TransactionTemplate(transactionManager).executeWithoutResult(tx -> {
+				jdbc.sql("SELECT id FROM conversation WHERE id = :id FOR UPDATE")
+						.param("id", conversationId)
+						.query(UUID.class)
+						.single();
+				lockHeld.countDown();
+				try {
+					if (!releaseLock.await(10, TimeUnit.SECONDS)) {
+						throw new IllegalStateException("Timed out waiting to release the conversation lock");
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Interrupted while holding the conversation lock", e);
+				}
+			}));
+			assertTrue(lockHeld.await(5, TimeUnit.SECONDS), "test transaction should hold the conversation row");
+			Future<Integer> blockResult = pool.submit(() -> mvc.perform(put(blocksUrl(publicIdOf(b))).with(auth(a)))
+					.andReturn().getResponse().getStatus());
+
+			// Observe the actual PostgreSQL lock wait rather than relying only on a timing-based assertion.
+			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+			boolean waitingForConversation = false;
+			while (System.nanoTime() < deadline) {
+				long waiters = jdbc.sql("""
+						SELECT COUNT(*)
+						FROM pg_stat_activity
+						WHERE pid <> pg_backend_pid()
+						  AND datname = current_database()
+						  AND wait_event_type = 'Lock'
+						  AND query LIKE '%FOR UPDATE OF c%'
+						""")
+						.query(Long.class)
+						.single();
+				if (waiters > 0) {
+					waitingForConversation = true;
+					break;
+				}
+				Thread.sleep(20);
+			}
+			assertTrue(waitingForConversation,
+					"block should wait for the same conversation row used to serialize message sends");
+
+			releaseLock.countDown();
+			holder.get(10, TimeUnit.SECONDS);
+			assertEquals(204, blockResult.get(10, TimeUnit.SECONDS));
+			mvc.perform(post(messagesUrl(conversation)).with(auth(a)).contentType("application/json")
+					.content(sendJson(UUID.randomUUID(), "after the block")))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("CONVERSATION_CLOSED"));
+		} finally {
+			releaseLock.countDown();
+			pool.shutdownNow();
+		}
 	}
 
 	@Test
