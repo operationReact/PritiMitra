@@ -31,9 +31,9 @@ Message history and report evidence are retained. Nothing is silently deleted.
 - Canonical pair ordering uses PostgreSQL `LEAST` and `GREATEST`. Locks are taken with `FOR NO KEY UPDATE` in ascending ID order.
 - Messages have a unique `(sender, client_message_id)` key, so retries store at most one copy. Replaying the same body returns the stored message. A different body with the same key returns `409 IDEMPOTENCY_CONFLICT`.
 - Migrations are additive and begin after V9. The applied migrations V1–V9 are unchanged.
-- **Message ordering.** `seq` is an identity value allocated at insert time, so on its own it is not commit-ordered. Each send takes `FOR UPDATE` on the conversation row before it allocates `seq`, and holds that lock until commit or rollback. Sends to the same conversation are serialised. Sends to different conversations do not block each other. Lock order is match and conversation rows only, and unmatch and block never wait on the conversation row, so the two paths cannot deadlock. Because commit order therefore matches `seq` order, a reader that has seen `seq N` can rely on every lower `seq` being committed.
+- **Message ordering and safety serialization.** `seq` is an identity value allocated at insert time, so on its own it is not commit-ordered. Each send locks the conversation row before it allocates `seq` and holds that lock until commit or rollback. Sends to the same conversation are serialized; sends to different conversations do not block each other. The block path locks the user pair in ascending order, then the conversation row, then changes the block/match state. Unmatch and like/match operations use the user-pair lock before changing match state. Sends never acquire user locks, so these paths can wait but do not form a lock cycle. Commit order therefore matches `seq` order, and a reader that has seen `seq N` can rely on every lower `seq` being committed.
 - `created_at` is set with `clock_timestamp()` at insert, not `now()`. The `now()` default is the transaction start time and would not reflect commit-order activity. No migration was needed.
-- **Known limitation.** Under read-committed isolation, a block that commits while a send for the same pair is already in flight can let that one send through. Later sends are refused. The lock does not cover block writes, which take the `app_user` and `profile_match` rows.
+- **Block/send ordering.** Blocking now obtains the conversation row lock before inserting the block and ending the match. If a send already owns that row lock, it completes before the block can proceed; the block response waits until the match is closed. Once the block response succeeds, subsequent message sends are rejected. `SafetyApiTests.blockWaitsForConversationLockAndRejectsMessagesAfterCompletion` checks that blocking waits on an actual PostgreSQL conversation-row lock and that sends fail after the block completes.
 
 ## API contracts
 
@@ -108,9 +108,8 @@ No AWS provisioning, Terraform apply, DNS, production database change, or deploy
 
 ## Open items
 
-1. Read-committed block race. A block that commits while a send for the same pair is in flight can let that one message through. Closing it fully needs the block path to take the conversation row lock, or a serialisable check. Not done in this pass.
-2. SSE streaming through the BFF, replacing or augmenting polling.
-3. Push and email delivery adapters and a notification processor with retry tracking.
-4. Browser and device verification of the messaging screens.
-5. Reports have no review queue or moderation tooling. Phase 7 owns that.
-6. Polling intervals (5 s, 60 s backoff) need product confirmation.
+1. SSE streaming through the BFF, replacing or augmenting polling.
+2. Push and email delivery adapters and a notification processor with retry tracking.
+3. Browser and device verification of the messaging screens.
+4. Reports have no review queue or moderation tooling. Phase 7 owns that.
+5. Polling intervals (5 s, 60 s backoff) need product confirmation.
