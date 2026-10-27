@@ -78,7 +78,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             joined: !group.joined, memberCount: group.joined ? (g.memberCount > 0 ? g.memberCount - 1 : 0) : g.memberCount + 1,
           )).toList(growable: false);
           _saving = false;
-          _notice = group.joined ? 'You left ' + group.name + '.' : 'You joined ' + group.name + '.';
+          _notice = group.joined ? 'You left ${group.name}.' : 'You joined ${group.name}.';
           if (group.joined && _selectedId == group.publicId) { _posts = const []; _cursor = null; }
         });
         if (!group.joined) await _loadPosts(group.publicId);
@@ -182,7 +182,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             for (final group in _groups)
               Card(child: Padding(padding: const EdgeInsets.all(AppSpacing.sm), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 ListTile(contentPadding: EdgeInsets.zero, title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text(group.description + '\n' + group.memberCount.toString() + ' members'),
+                  subtitle: Text('${group.description}\n${group.memberCount} members'),
                   selected: group.publicId == _selectedId, onTap: () => _select(group)),
                 Row(children: [
                   OutlinedButton(onPressed: _saving ? null : () => _membership(group), child: Text(group.joined ? 'Leave' : 'Join')),
@@ -208,9 +208,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   Text(MaterialLocalizations.of(context).formatMediumDate(post.createdAt.toLocal()), style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: AppSpacing.xs), SelectableText(post.body),
                   Wrap(spacing: AppSpacing.xs, runSpacing: AppSpacing.xxs, children: [
-                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'LIKE'), child: Text('Like ' + post.likeCount.toString())),
-                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'HEART'), child: Text('Heart ' + post.heartCount.toString())),
-                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'SUPPORT'), child: Text('Support ' + post.supportCount.toString())),
+                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'LIKE'), child: Text('Like ${post.likeCount}')),
+                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'HEART'), child: Text('Heart ${post.heartCount}')),
+                    OutlinedButton(onPressed: _saving ? null : () => _react(post, 'SUPPORT'), child: Text('Support ${post.supportCount}')),
                     TextButton(onPressed: _saving ? null : () => post.mine ? _remove(post) : _report(post), child: Text(post.mine ? 'Remove' : 'Report')),
                   ]),
                 ]))),

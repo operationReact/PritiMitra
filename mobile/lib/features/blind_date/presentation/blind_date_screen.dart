@@ -102,8 +102,7 @@ class _BlindDateScreenState extends ConsumerState<BlindDateScreen> {
   }
   String _label(DateTime utc) {
     final ist = _utcToIstWallTime(utc);
-    return MaterialLocalizations.of(context).formatMediumDate(ist) + ' · ' +
-      MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay(hour: ist.hour, minute: ist.minute)) + ' IST';
+    return '${MaterialLocalizations.of(context).formatMediumDate(ist)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay(hour: ist.hour, minute: ist.minute))} IST';
   }
   @override
   Widget build(BuildContext context) {
@@ -142,7 +141,7 @@ class _BlindDateScreenState extends ConsumerState<BlindDateScreen> {
                 booking.status == 'PAIRED' && booking.sessionStatus == 'SCHEDULED' ? 'Scheduled' :
                 booking.sessionStatus == 'CANCELLED' ? 'Cancelled' : booking.status),
               if (booking.partnerProfilePublicId != null && booking.sessionStatus == 'SCHEDULED')
-                Text('Partner profile ID: ' + booking.partnerProfilePublicId!, style: Theme.of(context).textTheme.bodySmall),
+                Text('Partner profile ID: ${booking.partnerProfilePublicId}', style: Theme.of(context).textTheme.bodySmall),
               if (booking.status == 'WAITING' ||
                   (booking.status == 'PAIRED' && booking.sessionStatus == 'SCHEDULED' && booking.startsAt.isAfter(DateTime.now())))
                 Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _saving ? null : () => _changeBooking(booking),

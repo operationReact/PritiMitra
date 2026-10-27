@@ -15,7 +15,6 @@ type Post = {
   createdAt: string;
   mine: boolean;
 };
-type GroupResponse = { items: unknown[] };
 type PostResponse = { items: unknown[]; nextCursor: string | null };
 
 async function api<T>(path: string, method = "GET", payload?: unknown): Promise<T> {
@@ -74,12 +73,11 @@ export function CommunityBrowser() {
   const selected = useMemo(() => groups.find((group) => group.publicId === selectedId) ?? null, [groups, selectedId]);
 
   const refreshGroups = useCallback(async () => {
-    setLoadingGroups(true);
     try {
       const payload = await api<unknown>("/api/backend/v1/community/groups");
       const nextGroups = parseGroups(payload);
       setGroups(nextGroups);
-      setSelectedId((current) => current && nextGroups.some((group) => group.publicId === current) ? current : nextGroups[0]?.publicId ?? null);
+      setSelectedId((current) => current && nextGroups.some((group) => group.publicId === current) ? current : null);
       setError(null);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Communities are unavailable.");
@@ -87,7 +85,7 @@ export function CommunityBrowser() {
       setLoadingGroups(false);
     }
   }, []);
-  useEffect(() => { void refreshGroups(); }, [refreshGroups]);
+  useEffect(() => { void Promise.resolve().then(refreshGroups); }, [refreshGroups]);
 
   const refreshPosts = useCallback(async (groupId: string, nextCursor?: string | null) => {
     setLoadingPosts(true);
@@ -105,10 +103,15 @@ export function CommunityBrowser() {
     }
   }, []);
 
-  useEffect(() => {
-    if (selected?.joined) void refreshPosts(selected.publicId);
-    else { setPosts([]); setCursor(null); }
-  }, [selectedId, selected?.joined, selected?.publicId, refreshPosts]);
+  async function selectGroup(group: Group) {
+    setSelectedId(group.publicId);
+    setPosts([]);
+    setCursor(null);
+    setError(null);
+    setNotice(null);
+    if (group.joined) await refreshPosts(group.publicId);
+    else setLoadingPosts(false);
+  }
 
   async function toggleMembership(group: Group) {
     setSaving(true); setError(null); setNotice(null);
@@ -125,6 +128,7 @@ export function CommunityBrowser() {
           { ...item, joined: true, memberCount: item.memberCount + 1 } : item));
         setSelectedId(group.publicId);
         setNotice("You joined " + group.name + ".");
+        await refreshPosts(group.publicId);
       }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Membership could not be updated.");
@@ -199,7 +203,7 @@ export function CommunityBrowser() {
           groups.length === 0 ? <p>No communities are available yet.</p> :
           <ul className="phase6-group-list">{groups.map((group) => (
             <li key={group.publicId} className={selectedId === group.publicId ? "phase6-group active" : "phase6-group"}>
-              <button className="phase6-group-select" onClick={() => setSelectedId(group.publicId)} aria-pressed={selectedId === group.publicId}>
+              <button className="phase6-group-select" onClick={() => void selectGroup(group)} aria-pressed={selectedId === group.publicId}>
                 <span className="phase6-group-title">{group.name}</span>
                 <span className="phase6-muted">{group.memberCount} members</span>
                 <span>{group.description}</span>

@@ -61,7 +61,7 @@ class CommunityApi {
     if (api == null) return const ApiUnavailable();
     final query = <String, String>{'size': '$size'};
     if (cursor != null) query['cursor'] = cursor;
-    return _map(await api.getJson('/api/v1/community/groups/$groupId/posts?' + Uri(queryParameters: query).query),
+    return _map(await api.getJson(Uri(path: '/api/v1/community/groups/$groupId/posts', queryParameters: query).toString()),
       CommunityPostPage.fromJson);
   }
   Future<ApiResult<Map<String, dynamic>>> join(String groupId) async {

@@ -107,8 +107,10 @@ export function BlindDateScheduler() {
       setSaving(false);
     }
   }
-  const minimum = localInput(new Date(Date.now() + 16 * 60 * 1000));
-  const maximum = localInput(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
+  const [timeBounds] = useState(() => ({
+    minimum: localInput(new Date(Date.now() + 16 * 60 * 1000)),
+    maximum: localInput(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
+  }));
 
   return (
     <div className="phase6-layout">
@@ -117,7 +119,7 @@ export function BlindDateScheduler() {
         <p className="phase6-muted">Choose a 15-minute boundary in the next 14 days. Pairing requires two eligible, unblocked people to choose the same time independently.</p>
         <form className="phase6-post-form" onSubmit={optIn}>
           <label htmlFor="blind-date-slot">Your local start time</label>
-          <input id="blind-date-slot" type="datetime-local" required min={minimum} max={maximum} step={900}
+          <input id="blind-date-slot" type="datetime-local" required min={timeBounds.minimum} max={timeBounds.maximum} step={900}
             value={slot} onChange={(event) => setSlot(event.target.value)} />
           <button className="phase6-primary" disabled={saving}>{saving ? "Saving…" : "Opt in to this slot"}</button>
         </form>
