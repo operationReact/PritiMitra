@@ -91,13 +91,17 @@ Implemented:
 
 ## Phase 7 — Trust and safety
 
-Status: in progress; the initial moderation queue and audited review actions are in PR #10. See docs/phase-7-trust-safety.md.
+Status: **initial moderation slice merged to `main` via PR #10; phase remains in progress.** See docs/phase-7-trust-safety.md.
 
-This slice adds moderator-only report review, content/profile hiding, account suspension with a required reason, and append-only audit events. Suspension disables discovery, closes active matches, hides published community posts, and cancels scheduled Blind Date pairings and opt-ins. The queue omits reporter public-profile identifiers. Reporting is limited to ten newly persisted reports per account per rolling hour with concurrent submissions serialized by a per-account row lock. Remaining Phase 7 scope includes account deletion, consent withdrawal controls, additional community/messaging abuse controls and operational audit-history procedures. No AWS resources or DNS records are created.
+Implemented: moderator-only report review, content/profile hiding, account suspension with a required reason, append-only audit events, a ten-new-reports/account/rolling-hour limit with concurrent submissions serialized by a per-account row lock, and suspension effects that close active matches and Blind Date pairings and hide community posts. The review queue omits reporter public-profile identifiers. Remaining Phase 7 scope includes self-service account deletion, consent withdrawal controls, additional community/messaging abuse controls, and operational audit-history procedures. No AWS resources or DNS records are created.
 
 ## Phase 8 — Responsive web product experience
 
-Authenticated product flows on desktop/tablet/mobile web, using the same backend APIs and conceptual design tokens.
+Status: **in progress in PR #12** on `feature/phase-8-responsive-web`.
+
+This first slice adds a shared responsive authenticated workspace shell, route-aware navigation, a data-backed Home dashboard, and richer discovery cards. The public landing page stays outside the workspace. Desktop receives a persistent sidebar; tablet collapses to an icon rail; mobile receives a compact bottom navigation that respects safe-area insets. The dashboard uses the existing authenticated profile, conversation, community, and Blind Date APIs; unavailable data is shown as unavailable rather than fabricated. Discovery cards use abstract gradients and initials because the discovery API does not return profile photos. Motion honors reduced-motion preferences.
+
+Remaining Phase 8 scope: review every existing product flow at mobile/tablet/desktop sizes, refine empty/error/loading states and conversation layouts, verify actual browser/device behavior, compare rendered screens to approved Figma frames, and complete the still-missing web authentication/onboarding experience tracked under Phase 3. No AWS provisioning or DNS changes are part of Phase 8.
 
 ## Phase 9 — Release readiness
 

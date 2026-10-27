@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ProductAppShell } from "./product-app-shell";
 
 export const metadata: Metadata = {
   title: "PritiMitra",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><ProductAppShell>{children}</ProductAppShell></body>
     </html>
   );
 }
