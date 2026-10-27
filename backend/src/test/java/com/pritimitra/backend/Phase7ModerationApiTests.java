@@ -143,44 +143,27 @@ class Phase7ModerationApiTests {
 
     @Test
     void reportSubmissionsAreLimitedToTenPerAccountPerRollingHour() throws Exception {
-        String author = eligibleUser("Rate limit author");
         String reporter = eligibleUser("Rate limit reporter");
-        String groupId = JsonPath.read(body(get("/api/v1/community/groups").with(auth(author))), "$.items[0].publicId");
-        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(author)))
-                .andExpect(status().isOk());
-        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(reporter)))
-                .andExpect(status().isOk());
-
-        try {
-            for (int i = 1; i <= 11; i++) {
-                String postResponse = mvc.perform(post("/api/v1/community/groups/" + groupId + "/posts")
-                        .with(auth(author)).contentType("application/json")
-                        .content("{\"body\":\"rate limit test post " + i + "\"}"))
-                        .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-                String postId = JsonPath.read(postResponse, "$.postPublicId");
-                var submission = post("/api/v1/reports").with(auth(reporter)).contentType("application/json")
-                        .content(reportJson("COMMUNITY_POST", postId, "SPAM"));
-                if (i <= 10) {
-                    mvc.perform(submission).andExpect(status().isCreated());
-                } else {
-                    mvc.perform(submission).andExpect(status().is(429))
-                            .andExpect(jsonPath("$.code").value("REPORT_RATE_LIMITED"));
-                }
-            }
-
-            assertEquals(10L, jdbc.sql("""
-                    SELECT count(*) FROM user_report
-                    WHERE reporter_id = (SELECT id FROM app_user WHERE cognito_sub = :sub)
-                      AND created_at >= clock_timestamp() - interval '1 hour'
-                    """).param("sub", reporter).query(Long.class).single());
-        } finally {
-            // The seeded community is shared by tests. Keep temporary rate-limit posts out of other feed tests.
+        // Simulate retained reports whose targets have since been purged. This keeps the fixture
+        // focused on report throttling without leaving published community posts for other tests.
+        for (int i = 0; i < 10; i++) {
             jdbc.sql("""
-                    UPDATE community_post SET status = 'REMOVED', updated_at = clock_timestamp()
-                    WHERE author_id = (SELECT id FROM app_user WHERE cognito_sub = :sub)
-                      AND body LIKE 'rate limit test post %'
-                    """).param("sub", author).update();
+                    INSERT INTO user_report (reporter_id, target_type, category, details)
+                    VALUES ((SELECT id FROM app_user WHERE cognito_sub = :sub),
+                            'PROFILE', 'SPAM', 'retained rate-limit fixture')
+                    """).param("sub", reporter).update();
         }
+
+        mvc.perform(post("/api/v1/reports").with(auth(reporter)).contentType("application/json")
+                .content(reportJson("PROFILE", UUID.randomUUID().toString(), "SPAM")))
+                .andExpect(status().is(429))
+                .andExpect(jsonPath("$.code").value("REPORT_RATE_LIMITED"));
+
+        assertEquals(10L, jdbc.sql("""
+                SELECT count(*) FROM user_report
+                WHERE reporter_id = (SELECT id FROM app_user WHERE cognito_sub = :sub)
+                  AND created_at >= clock_timestamp() - interval '1 hour'
+                """).param("sub", reporter).query(Long.class).single());
     }
 
     private void makeDiscoverable(String sub) throws Exception {
