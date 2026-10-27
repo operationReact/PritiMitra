@@ -70,7 +70,7 @@ export function BlindDateScheduler() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   async function optIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
