@@ -28,11 +28,6 @@ function localInput(d: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
 }
-function defaultSlot(): string {
-  const date = new Date(Date.now() + 60 * 60 * 1000);
-  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
-  return localInput(date);
-}
 function parseBookings(value: unknown): Booking[] {
   if (typeof value !== "object" || value === null || !Array.isArray((value as BookingList).items)) throw new Error("Your schedule could not be read.");
   return (value as BookingList).items.filter((item): item is Booking => {
@@ -53,13 +48,16 @@ function formatTime(iso: string): string {
 }
 
 export function BlindDateScheduler() {
-  const [slot, setSlot] = useState(defaultSlot);
+  const [slot, setSlot] = useState("");
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  const [timeBounds, setTimeBounds] = useState({ minimum: "", maximum: "" });
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const refresh = useCallback(async () => {
+    setNowMs(Date.now());
     setLoading(true);
     try {
       setBookings(parseBookings(await api<unknown>("/api/backend/v1/blind-dates/my")));
@@ -70,7 +68,20 @@ export function BlindDateScheduler() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      const now = Date.now();
+      const date = new Date(now + 60 * 60 * 1000);
+      date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+      setSlot(localInput(date));
+      setTimeBounds({
+        minimum: localInput(new Date(now + 16 * 60 * 1000)),
+        maximum: localInput(new Date(now + 14 * 24 * 60 * 60 * 1000)),
+      });
+      setNowMs(now);
+    });
+    void Promise.resolve().then(refresh);
+  }, [refresh]);
 
   async function optIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,11 +118,6 @@ export function BlindDateScheduler() {
       setSaving(false);
     }
   }
-  const [timeBounds] = useState(() => ({
-    minimum: localInput(new Date(Date.now() + 16 * 60 * 1000)),
-    maximum: localInput(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
-  }));
-
   return (
     <div className="phase6-layout">
       <section className="phase6-panel">
@@ -121,7 +127,7 @@ export function BlindDateScheduler() {
           <label htmlFor="blind-date-slot">Your local start time</label>
           <input id="blind-date-slot" type="datetime-local" required min={timeBounds.minimum} max={timeBounds.maximum} step={900}
             value={slot} onChange={(event) => setSlot(event.target.value)} />
-          <button className="phase6-primary" disabled={saving}>{saving ? "Saving…" : "Opt in to this slot"}</button>
+          <button className="phase6-primary" disabled={saving || !slot}>{saving ? "Saving…" : "Opt in to this slot"}</button>
         </form>
         <p className="phase6-muted">Current time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"}. Opt-in never creates a dating match or conversation automatically.</p>
       </section>
@@ -141,7 +147,7 @@ export function BlindDateScheduler() {
                 {item.partnerProfilePublicId && item.sessionStatus === "SCHEDULED" ?
                   <p className="phase6-muted">Partner profile ID: {item.partnerProfilePublicId}</p> : null}
               </div>
-              {(item.status === "WAITING" || (item.status === "PAIRED" && item.sessionStatus === "SCHEDULED" && new Date(item.startsAt) > new Date())) ?
+              {(item.status === "WAITING" || (item.status === "PAIRED" && item.sessionStatus === "SCHEDULED" && nowMs !== null && Date.parse(item.startsAt) > nowMs)) ?
                 <button className="phase6-secondary" disabled={saving} onClick={() => void withdraw(item)}>
                   {item.status === "WAITING" ? "Withdraw" : "Cancel session"}
                 </button> : null}
