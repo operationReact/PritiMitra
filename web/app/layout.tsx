@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { ProductAppShell } from "./product-app-shell";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <body><ProductAppShell>{children}</ProductAppShell></body>
+      <body><Suspense fallback={children}><ProductAppShell>{children}</ProductAppShell></Suspense></body>
     </html>
   );
 }
