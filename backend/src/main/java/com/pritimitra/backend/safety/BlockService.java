@@ -38,6 +38,11 @@ public class BlockService {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "CANNOT_BLOCK_SELF", "You cannot block yourself");
 		}
 		lockUsers(viewerId, target);
+		// Serialize the safety transition with in-flight sends before making the block visible or closing the match.
+		// Message sends lock conversation then match; they do not acquire the account locks held here, so this order
+		// cannot form a lock cycle with a send. A send that already owns the conversation lock completes before this
+		// block, and no send can persist after the block transaction completes.
+		lockConversation(viewerId, target);
 		jdbc.sql("""
 				INSERT INTO user_block (blocker_id, blocked_id) VALUES (:blocker, :blocked)
 				ON CONFLICT (blocker_id, blocked_id) DO NOTHING
@@ -73,6 +78,26 @@ public class BlockService {
 				.param("viewer", viewerId, Types.OTHER)
 				.param("pid", targetProfilePublicId, Types.OTHER)
 				.update();
+	}
+
+	/**
+	 * Locks the pair's conversation before the block row or match status is changed. This uses the same
+	 * conversation-before-match ordering as message sends, so the block decision is linearized with sends.
+	 * Pairs without a match/conversation have nothing to lock; the block still prevents a future match.
+	 */
+	private void lockConversation(UUID a, UUID b) {
+		jdbc.sql("""
+				SELECT c.id
+				FROM conversation c
+				JOIN profile_match m ON m.id = c.match_id
+				WHERE (m.user_low_id = :a AND m.user_high_id = :b)
+				   OR (m.user_low_id = :b AND m.user_high_id = :a)
+				FOR UPDATE OF c
+				""")
+				.param("a", a)
+				.param("b", b)
+				.query(UUID.class)
+				.list();
 	}
 
 	/** Locks both account rows in ascending id order, matching the lock order used by likes and matching. */
