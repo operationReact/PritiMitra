@@ -142,6 +142,15 @@ describe("resolveBackendQuery", () => {
     expect(query(DISCOVERY, "__proto__=x")).toBeNull();
   });
 
+  it("validates moderation queue filters and paging parameters", () => {
+    const path = "/api/v1/moderation/reports";
+    expect(query(path, "status=PENDING&size=20")).toBe("status=PENDING&size=20");
+    expect(query(path, "status=ALL&cursor=../../admin")).toBeNull();
+    expect(query(path, "status=ALL&size=51")).toBeNull();
+    expect(query(path, "status=UNKNOWN")).toBeNull();
+    expect(query(path, "status=PENDING&admin=true")).toBeNull();
+  });
+
   it("rejects any query on paths without rules", () => {
     expect(query("/api/v1/me", "size=20")).toBeNull();
     expect(query("/api/v1/likes/pub-abc123", "cursor=abc")).toBeNull();
@@ -155,6 +164,11 @@ describe("messaging and safety routes", () => {
     expect(resolveBackendPath("GET", ["v1", "notifications"])).toBe("/api/v1/notifications");
     expect(resolveBackendPath("PUT", ["v1", "notifications", "read-all"])).toBe("/api/v1/notifications/read-all");
     expect(resolveBackendPath("POST", ["v1", "reports"])).toBe("/api/v1/reports");
+    expect(resolveBackendPath("GET", ["v1", "moderation", "reports"])).toBe("/api/v1/moderation/reports");
+    expect(resolveBackendPath("PUT", ["v1", "moderation", "reports", "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "decision"]))
+      .toBe("/api/v1/moderation/reports/3f2504e0-4f89-41d3-9a0c-0305e82c3301/decision");
+    expect(resolveBackendPath("POST", ["v1", "moderation", "reports"])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "moderation", "reports", "not-a-uuid", "decision"])).toBeNull();
     expect(resolveBackendPath("POST", ["v1", "matches"])).toBeNull();
     expect(resolveBackendPath("DELETE", ["v1", "conversations"])).toBeNull();
   });

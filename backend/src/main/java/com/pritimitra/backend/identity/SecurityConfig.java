@@ -25,6 +25,7 @@ class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+						.requestMatchers("/api/v1/moderation/**").authenticated()
 						.requestMatchers("/api/v1/me", "/api/v1/onboarding/**").authenticated()
 						.requestMatchers("/api/v1/**").access(eligibleUser)
 						.anyRequest().authenticated())
