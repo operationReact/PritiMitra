@@ -104,6 +104,14 @@ function isPhase6Target(method: BackendMethod, segments: readonly string[]): boo
   return false;
 }
 
+
+/** Phase 7 moderation routes are deliberately narrow; only report listing and one report review action are exposed. */
+function isPhase7Target(method: BackendMethod, segments: readonly string[]): boolean {
+  if (segments[0] !== "v1" || segments[1] !== "moderation" || segments[2] !== "reports") return false;
+  if (segments.length === 3) return method === "GET";
+  return segments.length === 4 && UUID_PATTERN.test(segments[3] ?? "") && method === "PUT";
+}
+
 /**
  * Maps catch-all segments (for example ["v1", "me"]) to an upstream path under /api/v1/.
  * Segments must be plain tokens, which rejects encoded slashes, dot segments and query-like input.
@@ -130,7 +138,7 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   if (isLikeTarget) {
     return path;
   }
-  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) || isPhase6Target(method, segments) ? path : null;
+  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) || isPhase6Target(method, segments) || isPhase7Target(method, segments) ? path : null;
 }
 
 /** True for the photo content path, whose successful response is an image body rather than JSON. */
@@ -167,6 +175,10 @@ const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = 
   "/api/v1/matches": PAGED_RULES,
   "/api/v1/conversations": PAGED_RULES,
   "/api/v1/notifications": PAGED_RULES,
+  "/api/v1/moderation/reports": {
+    ...PAGED_RULES,
+    status: /^(?:PENDING|ACTIONED|DISMISSED)$/,
+  },
 };
 
 function queryRulesFor(path: string): Readonly<Record<string, RegExp>> {

@@ -76,11 +76,11 @@ Status: **merged to `main` via PR #5; implementation complete for this phase's c
 
 ## Phase 5 — Matching and messaging
 
-Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6 now targeting `main`.** Current scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports and in-app notifications. Backend CI (102 tests), Web CI, and Flutter CI passed on head `5537a7570bbbfb6b02173f2aa090b031e5249060`; verify CI on the latest base-sync commit before merging. Browser/device acceptance, live AWS/Cognito validation, and moderation tooling remain outstanding; moderation review is Phase 7 scope.
+Status: **merged to `main` via PR #6.** Scope includes transactional reciprocal-like matching, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports, and in-app notifications. Browser/device acceptance and live AWS/Cognito validation remain release-gate items.
 
 ## Phase 6 — Blind Date and community
 
-Status: **in progress in draft PR #8** on `feature/phase-6-blind-date-community`.
+Status: **complete for the committed feature scope and merged to `main` via PR #8.**
 
 Implemented in this slice:
 - Additive Flyway V10 schema for Blind Date opt-ins/pairings, curated groups, posts, reactions and private community-post reporting.
@@ -90,11 +90,15 @@ Implemented in this slice:
 - Web pages `/community` and `/blind-date`, with BFF route/query allow-lists and tests.
 - Flutter Community and Blind Date screens with protected routes from the active-account home.
 
-Automated Backend, Web and Flutter workflows have been triggered for the latest branch head; outcomes are being checked. Remaining: fix any CI findings, expand client/controller tests, refine UX/accessibility, and add the staff moderation/review queue in Phase 7. No AWS provisioning, Terraform apply, DNS change or deployment is part of this PR.
+Backend, Web and Flutter CI passed on the final Phase 6 head before merge. Authenticated browser/device acceptance and accessibility polish remain release-gate work. Staff reporting review is being implemented in Phase 7. No AWS provisioning, Terraform apply, DNS change or deployment was part of PR #8.
 
 ## Phase 7 — Trust and safety
 
-Reporting queues, abuse prevention, consent controls, account deletion, audit events, and operational review tooling.
+Status: **in progress in PR #10** on `feature/phase-7-trust-safety`.
+
+This first slice adds a moderator-only report review queue (Cognito groups `PRITIMITRA_MODERATORS` or `PRITIMITRA_ADMINS`), bounded keyset pagination, dismiss/hide-content/suspend-account decisions, suspension safety effects, an append-only moderation audit table, and a per-account report submission limit of 10 persisted reports per rolling hour. The web operations page uses the authenticated backend proxy and does not reveal reporter identities.
+
+Remaining in Phase 7: self-service account deletion and its retention policy, user-facing consent review/withdrawal controls, additional anti-abuse controls, and full operational runbooks. AWS group provisioning is deferred; the authorization contract is implemented but no Cognito group or AWS resource has been created. No AWS provisioning or DNS changes are part of this phase.
 
 ## Phase 8 — Responsive web product experience
 

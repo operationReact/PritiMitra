@@ -201,7 +201,7 @@ Compatibility with real environments is unverified. No shared database was queri
 - Not run: browser or device exercise of the photo flows, Figma screenshot comparison, live S3, Cognito, and `terraform apply`. These need explicit authorization or an available device.
 
 
-## Phase 5 — Matching, messaging, notifications and safety (in progress, PR #6)
+## Phase 5 — Matching, messaging, notifications and safety (merged via PR #6)
 
 Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main`. The implementation covers transactional mutual-like matching, unmatch, participant-only conversations, idempotent text messages (2,000-character limit), cursor-based catch-up with bounded polling, block/unblock, private reports, and in-app notifications. Block/send serialization locks the conversation row; the PostgreSQL-backed regression test verifies a block waits and sends are rejected after the block succeeds.
 
@@ -232,7 +232,7 @@ Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main
 - No AWS resources have been provisioned; no Terraform apply, DNS changes or deployment have occurred.
 
 ### Phase 5 — Matching, messaging, notifications and safety
-- **Open PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6), now targeting `main`.
+- **Merged PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6).
 - Backend CI passed with 102 tests, Web CI passed, and Flutter mobile CI passed on the original head `5537a7570bbbfb6b02173f2aa090b031e5249060`. The branch-base synchronization commit is documentation/architecture-only; check the latest workflows before merging.
 - Browser/device and live AWS/Cognito tests remain open. Moderation review tooling is a later Phase 7 item.
 
@@ -240,13 +240,24 @@ Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main
 Green unit tests and CI do not prove deployed AWS behavior, approved production legal configuration, or authenticated end-to-end product readiness. No Terraform apply, DNS mutation, live AWS provisioning or production deployment has been performed.
 
 
-## Phase 6 — Blind Date and community (in progress; draft PR #8)
+## Phase 6 — Blind Date and community (complete; merged via PR #8)
 
-- PR: https://github.com/operationReact/PritiMitra/pull/8
+- Merged PR: https://github.com/operationReact/PritiMitra/pull/8
 - Branch: `feature/phase-6-blind-date-community`
 - Backend: additive V10 migration; opt-in Blind Date slot validation, same-slot pairing and future-session cancellation; four seeded communities; membership, member-only paginated feed, reactions, own-post removal and private post reports.
 - Web: `/community` and `/blind-date`; BFF allow-list only permits the exact Phase 6 endpoint shapes and bounded community-feed query keys.
 - Flutter: Community and Blind Date screens linked from the active-account home; explicit membership controls, post/reaction/report actions, slot opt-in and cancellation.
-- A backend CI failure on an earlier head exposed Java UUID ordering not matching PostgreSQL's UUID comparison for a pair constraint. Updated pairing to use PostgreSQL `LEAST/GREATEST` so stored user order uses the same comparison semantics; latest workflows are running and must pass before this PR is ready.
-- Remaining: confirm all latest CI checks, authenticated browser/device acceptance and user-facing polish. Community reports are private pending reports; staff moderation tooling remains Phase 7 scope.
+- The final pre-merge Backend, Web and Flutter workflows passed. Authenticated browser/device acceptance and user-facing polish remain release gates.
+- Community reports are private and accessible through the moderator-only Phase 7 review queue.
 - No AWS resources, Terraform apply, DNS changes or deployment have occurred.
+
+
+## Phase 7 — Trust and safety (in progress; PR #10)
+
+- Added additive Flyway V11 changes for report review state, reviewer metadata and an append-only `moderation_audit_event` table protected against UPDATE and DELETE.
+- Added moderator-only report listing and review APIs. Requests require the Cognito `cognito:groups` claim to contain `PRITIMITRA_MODERATORS` or `PRITIMITRA_ADMINS`; moderator identity is checked against the application account table on every request.
+- Added bounded keyset pagination and target context without reporter identity. Review decisions: dismiss, hide a reported community post, or suspend the reported account.
+- Account suspension disables discovery, closes active matches, hides the account's published community posts, and cancels scheduled Blind Date sessions and opt-ins.
+- Report submission is limited to 10 persisted reports per account per rolling hour; a per-reporter row lock serializes the rate-count-and-submit transaction. Community feeds/interactions omit content from suspended accounts.
+- Added the web operations queue at `/moderation` with pending/actioned/dismissed filters, internal review notes and confirm prompts for destructive actions. The BFF allows only the exact listing/review paths and validates query parameters.
+- Remaining: account-deletion and consent-revocation workflows, additional anti-abuse controls, reviewer-group provisioning and runbooks. AWS resources, Cognito groups and DNS have not been provisioned or changed. CI results must be checked on the current PR head before calling this slice verified.

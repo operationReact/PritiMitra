@@ -241,3 +241,25 @@ describe("Phase 6 community and Blind Date proxy policy", () => {
     expect(resolveBackendQuery(path, new URLSearchParams("cursor=a&cursor=b"))).toBeNull();
   });
 });
+
+
+describe("Phase 7 moderation routes", () => {
+  const reportId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+  it("allows only moderation report listing and review by exact UUID", () => {
+    expect(resolveBackendPath("GET", ["v1", "moderation", "reports"])).toBe("/api/v1/moderation/reports");
+    expect(resolveBackendPath("PUT", ["v1", "moderation", "reports", reportId])).toBe(`/api/v1/moderation/reports/${reportId}`);
+    expect(resolveBackendPath("POST", ["v1", "moderation", "reports"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "moderation", "reports", reportId])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "moderation", "reports", "not-a-uuid"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "moderation", "reports", reportId])).toBeNull();
+  });
+
+  it("validates status, cursor and page size for the review queue", () => {
+    expect(resolveBackendQuery("/api/v1/moderation/reports", new URLSearchParams("status=PENDING&size=20"))).toBe("status=PENDING&size=20");
+    expect(resolveBackendQuery("/api/v1/moderation/reports", new URLSearchParams("status=ACTIONED&cursor=AbC_-9&size=50"))).toBe("status=ACTIONED&cursor=AbC_-9&size=50");
+    expect(resolveBackendQuery("/api/v1/moderation/reports", new URLSearchParams("status=UNKNOWN"))).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/reports", new URLSearchParams("status=PENDING&unexpected=1"))).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/reports", new URLSearchParams("size=51"))).toBeNull();
+  });
+});
