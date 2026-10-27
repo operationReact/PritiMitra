@@ -3,6 +3,7 @@ package com.pritimitra.backend.community;
 import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.common.PublicIdCursor;
 import com.pritimitra.backend.community.CommunityDtos.*;
+import com.pritimitra.backend.safety.UserActivityRateLimiter;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -16,7 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 class CommunityService {
     static final int MAX_PAGE_SIZE = 50;
     private final JdbcClient jdbc;
-    CommunityService(JdbcClient jdbc) { this.jdbc = jdbc; }
+    private final UserActivityRateLimiter rateLimiter;
+    CommunityService(JdbcClient jdbc, UserActivityRateLimiter rateLimiter) {
+        this.jdbc = jdbc;
+        this.rateLimiter = rateLimiter;
+    }
 
     @Transactional(readOnly = true)
     GroupList groups(String sub) {
@@ -94,6 +99,7 @@ class CommunityService {
     PostReceipt createPost(String sub, UUID groupPublicId, CreatePostRequest request) {
         UUID viewer=activeViewerId(sub), group=groupId(groupPublicId); requireMember(viewer,group);
         String body=normalizeBody(request==null?null:request.body());
+        rateLimiter.checkCommunityPost(viewer);
         return jdbc.sql("INSERT INTO community_post(group_id,author_id,body) VALUES(:group,:viewer,:body) RETURNING public_id,body,created_at")
             .param("group",group).param("viewer",viewer).param("body",body)
             .query((rs,n)->new PostReceipt(rs.getObject("public_id",UUID.class),rs.getString("body"),rs.getObject("created_at",java.time.OffsetDateTime.class))).single();
