@@ -271,3 +271,13 @@ Backend and web support a Cognito-group-gated report queue, audited dismiss/hide
 - Refined discovery cards with responsive abstract covers, monogram avatars, interest/goal chips and clear like interactions; no fabricated profile photos are used.
 - Added navigation routing unit tests. CI and rendered UI/browser checks remain pending on PR #12.
 - Remaining Phase 8 work: mobile/tablet/desktop review of all product flows, loading/empty/error-state refinement, conversation layout tuning, Figma comparison and completion of the missing web authentication/onboarding flows tracked in Phase 3. No AWS resources, DNS records or production deployment have been created.
+
+
+## Current delivery checkpoint — Phase 8B (2026-10-27)
+
+- PR #10: Phase 7 initial moderation/audit slice is merged. Account deletion, consent withdrawal controls, additional community/messaging abuse prevention and operational audit procedures remain open.
+- PR #12: Phase 8A responsive product shell and Home/discovery slice is merged. Responsive browser/device acceptance and approved-Figma comparison remain open.
+- Phase 8B implementation branch `feature/phase-8b-web-auth-onboarding`: adds web sign-in, sign-up, email confirmation/resend, password recovery/reset, account-state redirects, a guided onboarding flow, and a public legal-policy metadata endpoint.
+- Onboarding fails closed until the web runtime has non-draft `PRITIMITRA_TERMS_VERSION` and `PRITIMITRA_PRIVACY_VERSION` values plus valid HTTPS `PRITIMITRA_TERMS_URL` and `PRITIMITRA_PRIVACY_URL` values. These should match the backend-approved configuration. Draft legal text must not be accepted as production approval.
+- Automated checks have not been run inside this editing environment. The implementation must not be treated as validated until GitHub Actions passes on the exact PR head.
+- No AWS resources, DNS records, production data, or deployments were changed. Live Cognito/browser/device tests remain release gates.
