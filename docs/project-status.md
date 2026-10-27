@@ -6,7 +6,7 @@ Status: complete and merged to `main` via PR #1.
 GitHub Actions for Flutter, Web, and Backend all passed on the Phase 1 head. Local build results were recorded by the implementation session and were not independently rerun during this Phase 2 task.
 
 ## Phase 2 — Design system and rich UI
-Status: implementation in progress on `feature/phase-2-rich-design-system`.
+Status: foundation merged to `main` via PR #2. Visual parity against the approved Figma frames remains unverified.
 
 ### Implemented in this change
 - Expanded Flutter semantic colors and added shared spacing/radius tokens.
@@ -24,11 +24,11 @@ Status: implementation in progress on `feature/phase-2-rich-design-system`.
 - Authentication and app-store download links are not wired; CTAs clearly show that they are not ready.
 - The hero phone/profile artwork is composed from CSS shapes and Flutter shapes; it is illustrative UI, not a live profile or a downloaded Figma vector asset.
 
-### Next task
-Run branch CI to completion, fix build/test issues, then inspect rendered screenshots at mobile, tablet, and desktop breakpoints against Figma and tune geometry before marking Phase 2 complete.
+### Remaining acceptance work
+Inspect rendered screenshots at mobile, tablet, and desktop breakpoints against the approved Figma frames and tune geometry. PR #2 is merged, but visual parity is not claimed until that comparison is complete.
 
 ## Phase 3 — Authentication and onboarding (AWS-native)
-Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and pushed to origin; no PR has been opened or merged. Not production-ready.
+Status: the authentication/onboarding foundation was merged to `main` via PR #3. Phase 3 remains incomplete and is not production-ready.
 
 ### Implemented
 - Backend (Spring Boot): Cognito JWT resource server; account states `PENDING_EMAIL_VERIFICATION`, `ONBOARDING_INCOMPLETE`, `ACTIVE`, `INELIGIBLE`, `SUSPENDED`; enum interested-in set (`MEN`, `WOMEN`, `NON_BINARY`, `ALL_IDENTITIES`, mutually exclusive); append-only consents with configurable draft legal versions; ineligible-account retention purge (scheduled, deletes the Cognito identity first).
@@ -36,7 +36,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Mobile (Flutter): `amplify_auth_cognito` integration, route guard, and an API client. Amplify keeps tokens in native secure storage (`amplify_secure_storage` is resolved in `pubspec.lock`).
 - Infrastructure (`infra/terraform/`): Cognito user pool with a mobile SRP app client and a web password app client (both refresh rotation enabled, 60-minute access tokens, 30-day refresh, configurable grace period), SES domain identity with DKIM and custom MAIL FROM, ECR repositories, CloudWatch log groups, GitHub OIDC deploy role.
 
-### Pre-PR review (this change)
+### Implementation and review history (PR #3)
 - Backend `mvnw.cmd -B verify`: 27 tests passed (adds LegalPropertiesTests 4).
 - Web, Flutter, and Terraform results above were re-run on the current tree; only backend code changed afterwards.
 - Fixed: the legal guard defaulted to off, so drafts were accepted in production. It now defaults to `true` (fail closed). Local `.env.example` sets `false`, and Maven surefire sets `false` for tests.
@@ -73,7 +73,7 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 
 ### Not done or outstanding
 - Web onboarding and auth pages (Step 1 web half), Step 2 remaining auth screens, and Step 3 permission/error states are not implemented.
-- Phase 4 (profiles, photos, discovery, likes) is in progress on `feature/phase-4-profiles-discovery` (draft PR #5). Backend, Flutter and web profile, photo, discovery and like flows are implemented. Live AWS/Cognito and device or browser validation are not done. See the Phase 4 section for verified results and open items.
+- Phase 4 (profiles, privacy, photos, discovery and likes) is merged to `main` via PR #5. Automated CI passed on the verified implementation head. Live AWS/Cognito, runtime IAM, shared-database V6 preflight, authenticated device/browser flows and Figma visual parity remain unverified; see the Phase 4 section and release-gate document.
 - Production legal versions and HTTPS policy URLs are not approved. Production registration must stay disabled until they are supplied (`PRITIMITRA_LEGAL_REQUIRE_APPROVED=true` enforces this).
 - SES DNS records are not created. Creating them requires explicit authorization and an existing Route 53 zone ID.
 - Cognito `AdminDeleteUser` (called with the `sub` as username) is unverified against a real dev user pool.
@@ -81,8 +81,8 @@ Status: in progress on `feature/phase-3-auth-onboarding`. Work is committed and 
 - Live Cognito sign-up/verification/refresh-rotation tests need a development user pool.
 - Cost considerations before provisioning: ECS Fargate, RDS, ALB, NAT gateway, SES, and Cognito pricing by MAU.
 
-### Next task
-Complete the remaining Phase 3 automated checks (backend env example, docs). Then request authorization for a development AWS environment after reviewing the cost list. DNS records stay un-created per your instruction. Keep Terraform plan/apply blocked until a dev environment is authorized.
+### Remaining Phase 3 release gates
+Complete the outstanding web authentication/onboarding routes and end-to-end acceptance. Validate Cognito sign-up, verification, recovery, refresh rotation and user deletion against an authorized development user pool. Review AWS costs and obtain explicit authorization before provisioning. Keep Terraform apply, DNS changes and live sending blocked until authorized and configured.
 
 ### Proposed DNS records (awaiting authorization; not created)
 | Purpose | Type | Name | Value |
@@ -94,7 +94,7 @@ Complete the remaining Phase 3 automated checks (backend env example, docs). The
 
 Set `manage_dns_records = true` and `route53_zone_id` only after authorization. Run `terraform output ses_dns_records_required` to get the exact token values.
 
-## Phase 4 — Profiles, privacy and discovery (in progress, branch `feature/phase-4-profiles-discovery`)
+## Phase 4 — Profiles, privacy and discovery (merged to `main` via PR #5)
 
 ### Implemented (backend, Checkpoint A)
 - Migration `V4__profiles_discovery_likes.sql` (additive): `onboarding_profile.discovery_visible` (default false), `onboarding_profile.public_id` (unique, random UUID), a partial index for discoverable profiles, and the `profile_like` table with a no-self-like check.
@@ -153,7 +153,7 @@ Set `manage_dns_records = true` and `route53_zone_id` only after authorization. 
 - Discovery preferences (gender identity and interests): NOT enforced, as described above.
 - Viewer-liked state on discovery cards: not provided. Liked profiles are reached through the outgoing-likes list.
 - Live AWS S3 and Cognito behaviour is not tested. Authorisation has not been given for a development bucket or `terraform apply`. The backend runtime IAM role is blocked on that infrastructure decision.
-- Phase 4 is not production-ready. PR #5 stays a draft.
+- Phase 4 implementation is merged to `main` via PR #5, but it is not production-ready until the runtime IAM/compute design, target-database V6 preflight, live integrations and authenticated browser/device checks are complete.
 
 ### Terraform and upgrade checks (Checkpoint E)
 - `infra/terraform/photos.tf` declares a private profile photo bucket: public access fully blocked, SSE-S3 (AES256), bucket-owner-enforced ownership, versioning disabled so deleted photos are not retained, TLS-only bucket policy, and abort of incomplete multipart uploads. Name is `pritimitra-profile-photos-<env>-<account_id>`. Output `profile_photo_bucket_name`.
@@ -201,31 +201,40 @@ Compatibility with real environments is unverified. No shared database was queri
 - Not run: browser or device exercise of the photo flows, Figma screenshot comparison, live S3, Cognito, and `terraform apply`. These need explicit authorization or an available device.
 
 
-## Phase 5 � Matching, messaging, notifications and safety (in progress, branch eature/phase-5-matching-messaging)
+## Phase 5 — Matching, messaging, notifications and safety (in progress, PR #6)
 
-Stacked on eature/phase-4-profiles-discovery (draft PR, not merged). Full design and lifecycle decisions: [phase-5-matching-messaging.md](./phase-5-matching-messaging.md).
+Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main`. The implementation covers transactional mutual-like matching, unmatch, participant-only conversations, idempotent text messages (2,000-character limit), cursor-based catch-up with bounded polling, block/unblock, private reports, and in-app notifications. Block/send serialization locks the conversation row; the PostgreSQL-backed regression test verifies a block waits and sends are rejected after the block succeeds.
 
-### Implemented
-- Backend: transactional mutual-like matching, unmatch, conversations and idempotent text messages with a 2,000-character limit, read cursor, block and unblock, private reports, in-app notifications, and discovery exclusion of blocked pairs.
-- Message delivery reliability: each send locks the conversation row until commit, so commit order matches `seq` order. A bounded ascending catch-up endpoint (`messages/newer`) uses an opaque, validated cursor. Clients advance the cursor only on accepted responses and merge by message ID.
-- Conversation list ordered by latest message time, with a stable public-ID tie-breaker and keyset pagination. Clients render server order only.
-- Block from inside a conversation in Flutter and web. It requires confirmation and closes the thread only after the server confirms.
-- Flutter: matches, conversation thread with pending, failed and confirmed send states, catch-up polling with backoff, block action, and session-expiry handling.
-- Web: allow-listed BFF routes for messaging (including detail and catch-up), same-origin and content-type checks, and a messages list and thread with catch-up polling and block action.
-
-### Verification (actual runs, this pass)
-- Backend `backend\mvnw.cmd -B clean verify` (JDK 21, Testcontainers): BUILD SUCCESS, 101 tests, 0 failures, 0 errors.
-- Flutter: `flutter analyze` no issues; `flutter test` all 112 passed.
-- Web: `npx vitest run` 130 passed; `npx tsc --noEmit` and `npm run lint` exit 0; `npm run build` exit 0.
-- Hot reload was not run because no Flutter app was connected.
-
-- Backend ackend\mvnw.cmd -B clean verify: BUILD SUCCESS, 93 tests, 0 failures, 0 errors.
-- Flutter: lutter analyze no issues; lutter test all 106 passed.
-- Web: itest run 121 passed; 	sc --noEmit and lint exit 0; 
-pm run build compiled.
+### Verification (previous branch head `5537a7570bbbfb6b02173f2aa090b031e5249060`)
+- Backend CI passed: 102 tests, 0 failures.
+- Web frontend CI passed.
+- Flutter CI passed: analyze, tests and Flutter web release build.
+- CI must be checked again on the branch after its base-sync merge commit.
 
 ### Open risks and next tasks
+- Polling intervals (5 seconds, with 60-second backoff) need product confirmation.
+- SSE, push and email delivery, browser/device verification and live AWS/Cognito testing are not done.
+- Reports remain private pending items; moderation review tooling is Phase 7 scope.
+- No infrastructure changed and no deployment occurred.
+
 - Block/send serialization: the block path locks the user pair, then the conversation row, before inserting the block and ending the match. Sends use the conversation row and then share-lock the match; they do not acquire user locks. A send already holding the row completes before the block can proceed; once the block response succeeds, subsequent sends reject. `SafetyApiTests.blockWaitsForConversationLockAndRejectsMessagesAfterCompletion` verifies the lock wait and post-block rejection. See [Phase 5 design](./phase-5-matching-messaging.md#data-model-and-integrity).
 - Polling intervals (5 s, 60 s backoff) need product confirmation.
 - SSE, push and email delivery, and browser or device verification are not done.
 - No live AWS, Cognito, device, browser, or Figma verification was run. No infrastructure changed.
+
+
+## Current implementation status (updated 2026-10-27)
+
+### Phase 4 — Profiles, privacy, photos and discovery
+- **Merged via PR #5:** profile management, discoverability, cursor-paginated discovery, directional likes, private photo APIs, Flutter and web flows, and private S3 bucket Terraform definition.
+- Backend, Web and Flutter CI passed on the original application-code head. On the subsequent documentation-sync head, Backend/Web CI and Flutter analyze/tests passed; the Flutter release build was still running when checked. No application source code changed in that docs-only sync.
+- Remaining release gates: runtime compute/IAM, authorized live Cognito/S3 testing, read-only V6 preflight against target databases, authenticated browser/device testing, Figma visual comparison and any future gender/interest compatibility decision. Photos remain owner-only and pending review until moderation is implemented.
+- No AWS resources have been provisioned; no Terraform apply, DNS changes or deployment have occurred.
+
+### Phase 5 — Matching, messaging, notifications and safety
+- **Open PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6), now targeting `main`.
+- Backend CI passed with 102 tests, Web CI passed, and Flutter mobile CI passed on the original head `5537a7570bbbfb6b02173f2aa090b031e5249060`. The branch-base synchronization commit is documentation/architecture-only; check the latest workflows before merging.
+- Browser/device and live AWS/Cognito tests remain open. Moderation review tooling is a later Phase 7 item.
+
+### Repository-wide release boundary
+Green unit tests and CI do not prove deployed AWS behavior, approved production legal configuration, or authenticated end-to-end product readiness. No Terraform apply, DNS mutation, live AWS provisioning or production deployment has been performed.
