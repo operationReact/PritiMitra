@@ -87,8 +87,15 @@ class BlindDateService {
 
         if (candidate.isPresent()) {
             UUID other = candidate.get().userId();
-            UUID low = viewer.compareTo(other) < 0 ? viewer : other;
-            UUID high = viewer.compareTo(other) < 0 ? other : viewer;
+            UserPair pair = jdbc.sql("""
+                    SELECT LEAST(CAST(:a AS uuid), CAST(:b AS uuid)) AS low,
+                           GREATEST(CAST(:a AS uuid), CAST(:b AS uuid)) AS high
+                    """)
+                    .param("a", viewer).param("b", other)
+                    .query((rs, n) -> new UserPair(rs.getObject("low", UUID.class), rs.getObject("high", UUID.class)))
+                    .single();
+            UUID low = pair.low();
+            UUID high = pair.high();
             UUID pairId = jdbc.sql("""
                     INSERT INTO blind_date_pair (user_low_id, user_high_id, starts_at)
                     VALUES (:low, :high, :startsAt)
@@ -183,6 +190,7 @@ class BlindDateService {
     private static ApiException invalid(String message) {
         return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_BLIND_DATE_SLOT", message);
     }
+    private record UserPair(UUID low, UUID high) {}
     private record Existing(UUID publicId, String status) {}
     private record Candidate(UUID bookingId, UUID userId) {}
 }

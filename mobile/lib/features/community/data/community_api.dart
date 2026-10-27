@@ -64,10 +64,10 @@ class CommunityApi {
     return _map(await api.getJson('/api/v1/community/groups/$groupId/posts?' + Uri(queryParameters: query).query),
       CommunityPostPage.fromJson);
   }
-  Future<ApiResult<void>> join(String groupId) async {
+  Future<ApiResult<Map<String, dynamic>>> join(String groupId) async {
     final api = client;
     if (api == null) return const ApiUnavailable();
-    return _map<void>(await api.putJson('/api/v1/community/groups/$groupId/membership', {}), (_) {});
+    return api.putJson('/api/v1/community/groups/$groupId/membership', {});
   }
   Future<ApiResult<void>> leave(String groupId) async {
     final api = client;

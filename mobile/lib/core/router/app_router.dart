@@ -10,6 +10,8 @@ import '../../features/auth/presentation/ineligible_screen.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/discovery/presentation/discovery_screen.dart';
+import '../../features/community/presentation/community_screen.dart';
+import '../../features/blind_date/presentation/blind_date_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/messaging/presentation/messaging_screens.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
@@ -32,6 +34,8 @@ abstract final class AppRoutes {
   static const profile = '/profile';
   static const conversations = '/conversations';
   static const notifications = '/notifications';
+  static const community = '/community';
+  static const blindDate = '/blind-date';
 
   /// Protected pages that only ACTIVE accounts may open.
   static const activePaths = {
@@ -40,6 +44,8 @@ abstract final class AppRoutes {
     profile,
     conversations,
     notifications,
+    community,
+    blindDate,
   };
 
   /// True for protected pages that only ACTIVE accounts may open, including
@@ -135,6 +141,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       _page(AppRoutes.notifications, const NotificationsScreen()),
+      _page(AppRoutes.community, const CommunityScreen()),
+      _page(AppRoutes.blindDate, const BlindDateScreen()),
     ],
   );
   ref.onDispose(router.dispose);
