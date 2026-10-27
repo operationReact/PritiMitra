@@ -90,7 +90,7 @@ This section records the Phase 4 requirements and the current state. Implemented
 - Use bounded, stable cursor/keyset pagination with deterministic ordering. Validate filter values and cap page sizes; avoid unbounded offset scans and unrestricted result queries.
 - Filter discovery server-side for account eligibility, visibility, blocked/reported relationships where applicable, and any supported discovery criteria.
 - Store likes with a database-enforced unique directional pair. Repeated like/unlike operations must have deterministic, idempotent behavior.
-- A like must not automatically create a match. Match creation and conversation behavior belong to Phase 5.
+- A like must not automatically create a match. Mutual likes create a match transactionally. Phase 5 contracts are in [phase-5-matching-messaging.md](./phase-5-matching-messaging.md). Real-time delivery is bounded polling, with SSE as a follow-up.
 
 ### Phase 4 test expectations
 

@@ -160,4 +160,4 @@ This decision does not block the eligibility, privacy, and pagination gates. It 
 | 16 | Visual parity with Figma | BLOCKED | Device/UI Verification | Frame links and a capture session |
 | 17 | Gender and interest matching | BLOCKED | Product Decision | Decision per section H |
 
-Phase 4 must not be merged on automated tests alone. Gates 9 through 17 remain open.
+Phase 4 has been merged to `main` to allow the next implementation phase to proceed. It is not production-ready on automated tests alone; gates 9 through 17 remain open and must be addressed before production rollout.

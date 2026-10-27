@@ -76,7 +76,7 @@ Status: **merged to `main` via PR #5; implementation complete for this phase's c
 
 ## Phase 5 — Matching and messaging
 
-Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6.** Current scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports, and in-app notifications. Backend CI (102 tests), Web CI, and Flutter CI passed on head `5537a7570bbbfb6b02173f2aa090b031e5249060`; retarget to `main` after Phase 4 and verify CI again. Browser/device acceptance, live AWS/Cognito validation, and moderation tooling remain outstanding; moderation review is Phase 7 scope.
+Status: **implemented on branch `feature/phase-5-matching-messaging`, open PR #6 now targeting `main`.** Current scope includes transactional reciprocal-like matching, unmatch, participant-only conversations, idempotent text messaging, cursor-based catch-up with bounded polling, block/unblock, private reports and in-app notifications. Backend CI (102 tests), Web CI, and Flutter CI passed on head `5537a7570bbbfb6b02173f2aa090b031e5249060`; verify CI on the latest base-sync commit before merging. Browser/device acceptance, live AWS/Cognito validation, and moderation tooling remain outstanding; moderation review is Phase 7 scope.
 
 ## Phase 6 — Blind Date and community
 

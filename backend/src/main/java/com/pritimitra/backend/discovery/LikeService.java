@@ -4,6 +4,7 @@ import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikeStatus;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfile;
 import com.pritimitra.backend.discovery.DiscoveryDtos.LikedProfilePage;
+import com.pritimitra.backend.safety.BlockPolicy;
 import java.sql.Types;
 import java.util.List;
 import java.util.UUID;
@@ -40,9 +41,11 @@ class LikeService {
 			""";
 
 	private final JdbcClient jdbc;
+	private final MatchService matches;
 
-	LikeService(JdbcClient jdbc) {
+	LikeService(JdbcClient jdbc, MatchService matches) {
 		this.jdbc = jdbc;
+		this.matches = matches;
 	}
 
 	@Transactional
@@ -52,7 +55,7 @@ class LikeService {
 		if (target.userId().equals(viewerId)) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "CANNOT_LIKE_SELF", "You cannot like your own profile");
 		}
-		if (!target.discoverable()) {
+		if (!target.discoverable() || BlockPolicy.blockedEitherWay(jdbc, viewerId, target.userId())) {
 			throw profileNotFound();
 		}
 		jdbc.sql("""
@@ -62,7 +65,8 @@ class LikeService {
 				.param("from", viewerId)
 				.param("to", target.userId())
 				.update();
-		return new LikeStatus(true);
+		MatchService.MatchOutcome outcome = matches.reconcileLike(viewerId, target.userId());
+		return new LikeStatus(true, outcome.state(), outcome.matchPublicId());
 	}
 
 	@Transactional
@@ -77,7 +81,7 @@ class LikeService {
 				.param("from", viewerId)
 				.param("publicId", targetPublicId)
 				.update();
-		return new LikeStatus(false);
+		return new LikeStatus(false, MatchDtos.MatchState.NONE, null);
 	}
 
 	@Transactional(readOnly = true)

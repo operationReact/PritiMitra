@@ -15,6 +15,11 @@ const ALLOWED_ROUTES: readonly AllowedRoute[] = [
   { method: "GET", path: "/api/v1/discovery" },
   { method: "GET", path: "/api/v1/profile/photos" },
   { method: "POST", path: "/api/v1/profile/photos" },
+  { method: "GET", path: "/api/v1/matches" },
+  { method: "GET", path: "/api/v1/conversations" },
+  { method: "GET", path: "/api/v1/notifications" },
+  { method: "PUT", path: "/api/v1/notifications/read-all" },
+  { method: "POST", path: "/api/v1/reports" },
 ];
 
 const SEGMENT_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
@@ -36,6 +41,40 @@ function isPhotoTarget(method: BackendMethod, segments: readonly string[]): bool
   }
   return segments.length === 5 && segments[4] === "content" && method === "GET";
 }
+
+/**
+ * Messaging, notification and block routes that address one resource by its opaque public id.
+ * Segment shape is checked here; the id itself is checked by SEGMENT_PATTERN in resolveBackendPath.
+ */
+function isMessagingTarget(method: BackendMethod, segments: readonly string[]): boolean {
+  if (segments[0] !== "v1" || segments.length < 3) {
+    return false;
+  }
+  const resource = segments[1];
+  const action = segments[3];
+  switch (resource) {
+    case "matches":
+      return segments.length === 3 && method === "DELETE";
+    case "conversations":
+      if (segments.length === 3) {
+        return method === "GET";
+      }
+      if (segments.length === 4 && action === "messages") {
+        return method === "GET" || method === "POST";
+      }
+      if (segments.length === 5 && action === "messages" && segments[4] === "newer") {
+        return method === "GET";
+      }
+      return segments.length === 4 && action === "read" && method === "PUT";
+    case "notifications":
+      return segments.length === 4 && action === "read" && method === "PUT";
+    case "blocks":
+      return segments.length === 3 && (method === "PUT" || method === "DELETE");
+    default:
+      return false;
+  }
+}
+
 
 /**
  * Maps catch-all segments (for example ["v1", "me"]) to an upstream path under /api/v1/.
@@ -63,7 +102,7 @@ export function resolveBackendPath(method: string, segments: readonly string[]):
   if (isLikeTarget) {
     return path;
   }
-  return isPhotoTarget(method, segments) ? path : null;
+  return isPhotoTarget(method, segments) || isMessagingTarget(method, segments) ? path : null;
 }
 
 /** True for the photo content path, whose successful response is an image body rather than JSON. */
@@ -79,21 +118,43 @@ export function isMultipartBackendRoute(method: string, path: string): boolean {
 
 const GOAL_VALUES = ["DATING", "FRIENDSHIP", "COMMUNITY", "MEET_PEOPLE", "OPEN_TO_CONNECTION"] as const;
 
+/** Cursor and page size rules shared by every paged list endpoint. */
+const PAGED_RULES: Readonly<Record<string, RegExp>> = {
+  cursor: /^[A-Za-z0-9_-]{1,128}$/,
+  size: /^(?:[1-9]|[1-4][0-9]|50)$/,
+};
+
+/** Conversation message history addresses one conversation by its public id. */
+const MESSAGE_HISTORY_PATH = /^\/api\/v1\/conversations\/[A-Za-z0-9-]{1,64}\/messages$/;
+
+/** Catch-up for messages newer than a cursor. The cursor is required and is checked by PAGED_RULES. */
+const MESSAGE_NEWER_PATH = /^\/api\/v1\/conversations\/[A-Za-z0-9-]{1,64}\/messages\/newer$/;
+
 /** Per-path query parameter rules. Any parameter not listed here is rejected. */
 const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = {
   "/api/v1/discovery": {
-    cursor: /^[A-Za-z0-9_-]{1,128}$/,
-    size: /^(?:[1-9]|[1-4][0-9]|50)$/,
+    ...PAGED_RULES,
     goal: new RegExp(`^(?:${GOAL_VALUES.join("|")})$`),
   },
+  "/api/v1/matches": PAGED_RULES,
+  "/api/v1/conversations": PAGED_RULES,
+  "/api/v1/notifications": PAGED_RULES,
 };
+
+function queryRulesFor(path: string): Readonly<Record<string, RegExp>> {
+  if (MESSAGE_HISTORY_PATH.test(path) || MESSAGE_NEWER_PATH.test(path)) {
+    return PAGED_RULES;
+  }
+  return QUERY_RULES[path] ?? {};
+}
 
 /**
  * Validates the query string for an allow-listed path and returns a normalized query (without "?"), or null
  * when any key is unknown, repeated or malformed. Paths without rules accept no query parameters at all.
  */
 export function resolveBackendQuery(path: string, search: URLSearchParams): string | null {
-  const rules = QUERY_RULES[path] ?? {};
+  const rules = queryRulesFor(path);
+
   const normalized = new URLSearchParams();
   const seen = new Set<string>();
   for (const [key, value] of search) {

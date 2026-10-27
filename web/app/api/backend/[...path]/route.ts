@@ -18,7 +18,10 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
   const method = request.method;
 
   const upstreamPath = resolveBackendPath(method, path);
-  const multipart = upstreamPath !== null && isMultipartBackendRoute(method, upstreamPath);
+  if (upstreamPath === null) {
+    return authErrorResponse(404, "not_found");
+  }
+  const multipart = isMultipartBackendRoute(method, upstreamPath);
   let body: string | undefined;
   let upload: { bytes: Uint8Array<ArrayBuffer>; contentType: string } | undefined;
   if (method !== "GET") {

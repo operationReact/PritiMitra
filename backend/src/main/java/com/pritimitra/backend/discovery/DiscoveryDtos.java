@@ -26,7 +26,8 @@ public final class DiscoveryDtos {
 			List<String> interests) {
 	}
 
-	public record LikeStatus(boolean liked) {
+	/** Outcome of a like or unlike. {@code matchPublicId} is set only when {@code matchState} is CREATED or EXISTING. */
+	public record LikeStatus(boolean liked, MatchDtos.MatchState matchState, UUID matchPublicId) {
 	}
 
 	/**

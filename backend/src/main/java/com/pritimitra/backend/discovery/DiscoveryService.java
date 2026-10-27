@@ -1,6 +1,7 @@
 package com.pritimitra.backend.discovery;
 
 import com.pritimitra.backend.common.ApiException;
+import com.pritimitra.backend.common.PublicIdCursor;
 import com.pritimitra.backend.discovery.DiscoveryDtos.DiscoveryCard;
 import com.pritimitra.backend.discovery.DiscoveryDtos.DiscoveryPage;
 import com.pritimitra.backend.onboarding.ConnectionGoal;
@@ -51,6 +52,10 @@ class DiscoveryService {
 			  AND p.date_of_birth > CURRENT_DATE - make_interval(years => :maxAgePlusOne)
 			  AND NOT EXISTS (
 			      SELECT 1 FROM profile_like l WHERE l.from_user_id = :viewerId AND l.to_user_id = p.user_id)
+			  AND NOT EXISTS (
+			      SELECT 1 FROM user_block b
+			      WHERE (b.blocker_id = :viewerId AND b.blocked_id = p.user_id)
+			         OR (b.blocker_id = p.user_id AND b.blocked_id = :viewerId))
 			  AND (CAST(:goal AS varchar) IS NULL OR EXISTS (
 			      SELECT 1 FROM user_connection_goal g WHERE g.user_id = p.user_id AND g.goal = CAST(:goal AS varchar)))
 			  AND (CAST(:cursor AS uuid) IS NULL OR p.public_id > CAST(:cursor AS uuid))
@@ -127,20 +132,12 @@ class DiscoveryService {
 		return array == null ? List.of() : List.of((String[]) array.getArray());
 	}
 
-	static UUID decodeCursor(String cursor) {
-		if (cursor == null || cursor.isBlank()) {
-			return null;
-		}
-		try {
-			String decoded = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-			return UUID.fromString(decoded);
-		} catch (IllegalArgumentException ex) {
-			throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Pagination cursor is invalid");
-		}
+	public static UUID decodeCursor(String cursor) {
+		return PublicIdCursor.decode(cursor);
 	}
 
-	static String encodeCursor(UUID publicId) {
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(publicId.toString().getBytes(StandardCharsets.UTF_8));
+	public static String encodeCursor(UUID publicId) {
+		return PublicIdCursor.encode(publicId);
 	}
 
 	private record Viewer(UUID id, String status, int minAge, int maxAge) {
