@@ -1,5 +1,6 @@
 terraform {
   required_version = ">= 1.10.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -8,12 +9,14 @@ terraform {
   }
 }
 
-variable "aws_region" {
-  description = "AWS region for the Terraform state bucket."
-  type        = string
-  default     = "ap-south-1"
-}
-
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = "pritimitra"
+      Environment = "state"
+      ManagedBy   = "terraform"
+    }
+  }
 }
