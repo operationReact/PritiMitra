@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { destinationForAccountStatus } from "@/lib/auth/redirect";
 
 export type AuthMode = "sign-in" | "sign-up" | "confirm" | "forgot" | "reset";
 
@@ -89,10 +90,10 @@ export function AuthFlow({ mode }: { mode: AuthMode }) {
           const status = typeof body === "object" && body !== null && "status" in body
             ? String((body as { status: unknown }).status)
             : "";
-          if (status === "ACTIVE") { router.replace("/home"); return; }
-          if (status === "ONBOARDING_INCOMPLETE") { router.replace("/onboarding"); return; }
-          if (status === "PENDING_EMAIL_VERIFICATION") { router.replace("/confirm-sign-up?email=" + encodeURIComponent(email)); return; }
-          router.replace("/account");
+          const destination = destinationForAccountStatus(status);
+          router.replace(destination === "/confirm-sign-up"
+            ? destination + "?email=" + encodeURIComponent(email)
+            : destination);
           return;
         }
         router.replace("/account");
