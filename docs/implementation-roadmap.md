@@ -97,12 +97,16 @@ Implemented: moderator-only report review, content/profile hiding, account suspe
 
 ## Phase 8 — Responsive web product experience
 
-Status: **in progress in PR #12** on `feature/phase-8-responsive-web`.
+Status: **Phase 8A merged via PR #12; Phase 8B web authentication/onboarding is in PR #13.**
 
 This first slice adds a shared responsive authenticated workspace shell, route-aware navigation, a data-backed Home dashboard, and richer discovery cards. The public landing page stays outside the workspace. Desktop receives a persistent sidebar; tablet collapses to an icon rail; mobile receives a compact bottom navigation that respects safe-area insets. The dashboard uses the existing authenticated profile, conversation, community, and Blind Date APIs; unavailable data is shown as unavailable rather than fabricated. Discovery cards use abstract gradients and initials because the discovery API does not return profile photos. Motion honors reduced-motion preferences.
 
-Remaining Phase 8 scope: review every existing product flow at mobile/tablet/desktop sizes, refine empty/error/loading states and conversation layouts, verify actual browser/device behavior, compare rendered screens to approved Figma frames, and complete the still-missing web authentication/onboarding experience tracked under Phase 3. No AWS provisioning or DNS changes are part of Phase 8.
+Phase 8B adds public sign-in/sign-up, email confirmation/resend, password recovery/reset, account-state routing and a guided age/consent/profile onboarding flow. Production onboarding stays blocked until non-draft approved policy versions and HTTPS Terms/Privacy URLs are configured. Remaining Phase 8 scope: mobile/tablet/desktop browser acceptance, conversation/community layout refinement, approved-Figma comparison and validation of the current PR #13 head. No AWS provisioning or DNS changes are part of Phase 8.
 
 ## Phase 9 — Release readiness
+
+Before production, close the remaining Phase 7 account deletion/consent/abuse-control tasks; finish browser/device and iOS build acceptance; validate authorized development Cognito and storage flows; approve legal policy versions/URLs; then perform cost/security review and deployment rehearsal. Do not apply Terraform or change DNS without explicit authorization.
+
+
 
 Performance/load tests, security review, backups/recovery, observability, deployment automation, store readiness, and cross-platform regression testing.
