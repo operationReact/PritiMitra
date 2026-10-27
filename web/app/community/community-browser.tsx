@@ -15,7 +15,7 @@ type Post = {
   createdAt: string;
   mine: boolean;
 };
-type PostResponse = { items: unknown[]; nextCursor: string | null };
+type PostResponse = { items: Post[]; nextCursor: string | null };
 
 async function api<T>(path: string, method = "GET", payload?: unknown): Promise<T> {
   const response = await fetch(path, {
@@ -44,7 +44,7 @@ function parsePosts(value: unknown): PostResponse {
   if (!isRecord(value) || !Array.isArray(value.items) || !(value.nextCursor === null || typeof value.nextCursor === "string")) {
     throw new Error("Community feed was invalid.");
   }
-  const items = value.items.filter((item): item is Post => isRecord(item) &&
+  const items = (value.items as unknown[]).filter((item): item is Post => isRecord(item) &&
     typeof item.postPublicId === "string" && typeof item.groupPublicId === "string" &&
     typeof item.body === "string" && typeof item.displayName === "string" &&
     typeof item.createdAt === "string" && typeof item.mine === "boolean" &&
