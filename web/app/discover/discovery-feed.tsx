@@ -6,6 +6,10 @@ import { LikeButton } from "./like-button";
 
 const PAGE_SIZE = 20;
 
+function initialsFor(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join("").toUpperCase() || "♡";
+}
+
 export function DiscoveryFeed({
   initialItems,
   initialCursor,
@@ -19,9 +23,7 @@ export function DiscoveryFeed({
   const [error, setError] = useState<string | null>(null);
 
   async function loadMore() {
-    if (!cursor || loading) {
-      return;
-    }
+    if (!cursor || loading) return;
     setLoading(true);
     setError(null);
     try {
@@ -32,11 +34,9 @@ export function DiscoveryFeed({
       });
       const page = response.ok ? parseDiscoveryPage(await response.json()) : null;
       if (!page) {
-        setError(
-          response.status === 401
-            ? "Your session has expired. Please sign in again."
-            : "We could not load more profiles. Please try again.",
-        );
+        setError(response.status === 401
+          ? "Your session has expired. Please sign in again."
+          : "We could not load more profiles. Please try again.");
         return;
       }
       setItems((current) => {
@@ -53,23 +53,46 @@ export function DiscoveryFeed({
 
   return (
     <>
-      <ul className="discovery-grid">
-        {items.map((card) => (
-          <li key={card.publicId} className="profile-card">
-            <h2>{card.displayName}</h2>
-            {card.bio ? <p>{card.bio}</p> : null}
-            {card.profilePrompt ? <p className="profile-prompt">{card.profilePrompt}</p> : null}
-            {card.goals.length > 0 ? <p>Goals: {card.goals.join(", ")}</p> : null}
-            {card.interests.length > 0 ? <p>Interests: {card.interests.join(", ")}</p> : null}
-            <LikeButton publicId={card.publicId} displayName={card.displayName} />
-          </li>
+      <div className="discovery-grid" role="list" aria-label="People to discover">
+        {items.map((card, index) => (
+          <article key={card.publicId} className={`profile-card discovery-profile-card discovery-tone-${index % 4}`} role="listitem">
+            <div className="discovery-profile-cover" aria-hidden="true">
+              <span className="discovery-cover-caption">A little introduction</span>
+              <span className="discovery-cover-orbit discovery-cover-orbit-one" />
+              <span className="discovery-cover-orbit discovery-cover-orbit-two" />
+              <span className="discovery-initial-avatar">{initialsFor(card.displayName)}</span>
+              <span className="discovery-cover-spark">✦</span>
+            </div>
+            <div className="discovery-profile-content">
+              <div className="discovery-card-overline">
+                <span>OPEN TO CONNECTION</span><span className="discovery-heart-mark" aria-hidden="true">♡</span>
+              </div>
+              <h2>{card.displayName}</h2>
+              {card.bio ? <p className="discovery-bio">{card.bio}</p> : <p className="discovery-bio discovery-bio-muted">A new face, a fresh story. Start with a hello.</p>}
+              {card.profilePrompt ? <blockquote className="discovery-prompt">“{card.profilePrompt}”</blockquote> : null}
+              {card.goals.length > 0 ? (
+                <div className="discovery-chip-group"><span className="discovery-chip-label">Looking for</span><div className="discovery-chips">
+                  {card.goals.map((goal) => <span className="discovery-chip discovery-chip-goal" key={goal}>{goal.replaceAll("_", " ").toLowerCase()}</span>)}
+                </div></div>
+              ) : null}
+              {card.interests.length > 0 ? (
+                <div className="discovery-chip-group"><span className="discovery-chip-label">Into</span><div className="discovery-chips">
+                  {card.interests.slice(0, 6).map((interest) => <span className="discovery-chip" key={interest}>{interest}</span>)}
+                </div></div>
+              ) : null}
+              <div className="discovery-card-actions">
+                <LikeButton publicId={card.publicId} displayName={card.displayName} />
+                <span className="discovery-consent-note"><span aria-hidden="true">✦</span> Kindness looks good on everyone</span>
+              </div>
+            </div>
+          </article>
         ))}
-      </ul>
-      {error ? <p role="alert">{error}</p> : null}
+      </div>
+      {error ? <p role="alert" className="discovery-feed-error">{error}</p> : null}
       {cursor ? (
         <div className="load-more">
           <button type="button" className="button" onClick={loadMore} disabled={loading}>
-            {loading ? "Loading profiles…" : error ? "Try again" : "Load more profiles"}
+            {loading ? "Finding more people…" : error ? "Try again" : "Meet more people"} <span aria-hidden="true">↗</span>
           </button>
         </div>
       ) : null}

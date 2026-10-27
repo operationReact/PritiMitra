@@ -3,7 +3,8 @@
 ## Current delivery checkpoint (2026-10-27)
 
 - PR #5 Phase 4, PR #6 Phase 5, and PR #8 Phase 6 are merged to main.
-- Phase 7 moderator queue and audit implementation is in PR #10. This branch also adds a 10-report/account/rolling-hour limit, removes reporter profile identifiers from moderator responses, and makes suspension close active matches, hide community posts, and cancel scheduled Blind Date pairings. AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
+- Phase 7 initial moderation queue and audit slice merged via PR #10. It includes a 10-new-reports/account/rolling-hour limit, omits reporter profile identifiers from moderation responses, and makes suspension close active matches, hide community posts, and cancel scheduled Blind Date pairings. Remaining Phase 7 work includes account deletion, consent withdrawal controls and further abuse prevention. AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
+- Phase 8 responsive authenticated web shell, Home dashboard and discovery-card redesign are in draft PR #12. CI and visual/browser validation are pending; no production deployment is implied.
 - No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
 
 ## Phase 1 — Engineering foundation
@@ -258,6 +259,15 @@ Green unit tests and CI do not prove deployed AWS behavior, approved production 
 - No AWS resources, Terraform apply, DNS changes or deployment have occurred.
 
 
-## Phase 7 — Trust and safety (initial moderation slice)
+## Phase 7 — Trust and safety (initial moderation slice merged via PR #10)
 
-Status: in progress in PR #10. Backend and web support a Cognito-group-gated report queue, audited dismiss/hide/suspend actions, and an append-only audit log. The backend requires the verified cognito:groups claim to include PritiMitraModerators; the web URL is not an access control. V11 is additive and does not modify V1–V10. No Cognito group was created, no AWS infrastructure was provisioned, and no live account or DNS operation was performed. Account deletion, optional consent withdrawal, rate limits/abuse prevention and fuller audit-history operations remain outstanding. See docs/phase-7-trust-safety.md.
+Backend and web support a Cognito-group-gated report queue, audited dismiss/hide/suspend actions, and an append-only audit log. The backend requires the verified `cognito:groups` claim to include `PritiMitraModerators`; the web URL is not an access control. V11 is additive and does not modify V1–V10. No Cognito group was created, no AWS infrastructure was provisioned, and no live account or DNS operation was performed. Account deletion, optional consent withdrawal, additional rate limits/abuse prevention and fuller audit-history operations remain outstanding. See docs/phase-7-trust-safety.md.
+
+## Phase 8 — Responsive web product experience (in progress; PR #12)
+
+- Added a shared route-aware product shell across existing authenticated product routes. The public landing page remains independent.
+- Added desktop sidebar, tablet icon rail, mobile bottom navigation with safe-area spacing, active route state, consistent brand lockup, privacy-first workspace messaging, and reduced-motion support.
+- Added `/home` as a data-backed overview using the existing profile, conversations, community-group and Blind Date APIs. Counts are omitted as unavailable rather than invented when an API cannot be read.
+- Refined discovery cards with responsive abstract covers, monogram avatars, interest/goal chips and clear like interactions; no fabricated profile photos are used.
+- Added navigation routing unit tests. CI and rendered UI/browser checks remain pending on PR #12.
+- Remaining Phase 8 work: mobile/tablet/desktop review of all product flows, loading/empty/error-state refinement, conversation layout tuning, Figma comparison and completion of the missing web authentication/onboarding flows tracked in Phase 3. No AWS resources, DNS records or production deployment have been created.

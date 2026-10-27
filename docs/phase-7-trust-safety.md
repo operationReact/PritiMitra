@@ -2,7 +2,7 @@
 
 ## Status
 
-Initial moderation/review tooling is in PR #10. This is a first implementation slice, not a production-readiness claim. AWS provisioning and DNS changes are explicitly out of scope.
+Initial moderation/review tooling was merged via PR #10. This is a first implementation slice, not a production-readiness claim. AWS provisioning and DNS changes are explicitly out of scope.
 
 ## Implemented in this slice
 
