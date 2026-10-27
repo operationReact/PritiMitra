@@ -225,7 +225,7 @@ Stacked on eature/phase-4-profiles-discovery (draft PR, not merged). Full desig
 pm run build compiled.
 
 ### Open risks and next tasks
-- Read-committed race: a block that commits during an in-flight send for the same pair can let that one message through. See the limitation in [phase-5-matching-messaging.md](./phase-5-matching-messaging.md#data-model-and-integrity).
+- Block/send serialization: the block path locks the user pair, then the conversation row, before inserting the block and ending the match. Sends use the conversation row and then share-lock the match; they do not acquire user locks. A send already holding the row completes before the block can proceed; once the block response succeeds, subsequent sends reject. `SafetyApiTests.blockWaitsForConversationLockAndRejectsMessagesAfterCompletion` verifies the lock wait and post-block rejection. See [Phase 5 design](./phase-5-matching-messaging.md#data-model-and-integrity).
 - Polling intervals (5 s, 60 s backoff) need product confirmation.
 - SSE, push and email delivery, and browser or device verification are not done.
 - No live AWS, Cognito, device, browser, or Figma verification was run. No infrastructure changed.
