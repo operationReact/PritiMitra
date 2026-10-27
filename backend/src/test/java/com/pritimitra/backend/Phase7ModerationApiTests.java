@@ -80,7 +80,8 @@ class Phase7ModerationApiTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].reportId").value(reportId))
                 .andExpect(jsonPath("$.items[0].targetType").value("COMMUNITY_POST"))
-                .andExpect(jsonPath("$.items[0].targetPreview").value("reported safety test post"));
+                .andExpect(jsonPath("$.items[0].targetPreview").value("reported safety test post"))
+                .andExpect(jsonPath("$.items[0].reporterProfilePublicId").doesNotExist());
 
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision")
                 .with(moderator("moderator-" + UUID.randomUUID())).contentType("application/json")
@@ -108,6 +109,16 @@ class Phase7ModerationApiTests {
         String reporter = eligibleUser("Reporter");
         String target = eligibleUser("Target");
         makeDiscoverable(target);
+        String groupId = JsonPath.read(body(get("/api/v1/community/groups").with(auth(target))), "$.items[0].publicId");
+        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(target)))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(reporter)))
+                .andExpect(status().isOk());
+        String targetPostResponse = mvc.perform(post("/api/v1/community/groups/" + groupId + "/posts")
+                .with(auth(target)).contentType("application/json")
+                .content("{\"body\":\"account suspension safety test post\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String targetPostId = JsonPath.read(targetPostResponse, "$.postPublicId");
         String reportId = createProfileReport(reporter, publicIdOf(target));
         JwtRequestPostProcessor moderator = moderator("moderator-" + UUID.randomUUID());
 
@@ -122,8 +133,45 @@ class Phase7ModerationApiTests {
                 .contentType("application/json").content("{\"decision\":\"SUSPEND_ACCOUNT\",\"note\":\"Repeated targeted harassment\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIONED"));
         assertEquals("SUSPENDED", jdbc.sql("SELECT status FROM app_user WHERE cognito_sub=:sub").param("sub", target).query(String.class).single());
+        assertEquals("HIDDEN", jdbc.sql("SELECT status FROM community_post WHERE public_id=:id")
+                .param("id", UUID.fromString(targetPostId)).query(String.class).single());
+        mvc.perform(get("/api/v1/community/groups/" + groupId + "/posts").with(auth(reporter)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
         assertEquals("ACCOUNT_SUSPENDED", jdbc.sql("SELECT event_type FROM safety_audit_event WHERE report_public_id=:id")
                 .param("id", UUID.fromString(reportId)).query(String.class).single());
+    }
+
+    @Test
+    void reportSubmissionsAreLimitedToTenPerAccountPerRollingHour() throws Exception {
+        String author = eligibleUser("Rate limit author");
+        String reporter = eligibleUser("Rate limit reporter");
+        String groupId = JsonPath.read(body(get("/api/v1/community/groups").with(auth(author))), "$.items[0].publicId");
+        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(author)))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(reporter)))
+                .andExpect(status().isOk());
+
+        for (int i = 1; i <= 11; i++) {
+            String postResponse = mvc.perform(post("/api/v1/community/groups/" + groupId + "/posts")
+                    .with(auth(author)).contentType("application/json")
+                    .content("{\"body\":\"rate limit test post " + i + "\"}"))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+            String postId = JsonPath.read(postResponse, "$.postPublicId");
+            var submission = post("/api/v1/reports").with(auth(reporter)).contentType("application/json")
+                    .content(reportJson("COMMUNITY_POST", postId, "SPAM"));
+            if (i <= 10) {
+                mvc.perform(submission).andExpect(status().isCreated());
+            } else {
+                mvc.perform(submission).andExpect(status().is(429))
+                        .andExpect(jsonPath("$.code").value("REPORT_RATE_LIMITED"));
+            }
+        }
+
+        assertEquals(10L, jdbc.sql("""
+                SELECT count(*) FROM user_report
+                WHERE reporter_id = (SELECT id FROM app_user WHERE cognito_sub = :sub)
+                  AND created_at >= clock_timestamp() - interval '1 hour'
+                """).param("sub", reporter).query(Long.class).single());
     }
 
     private void makeDiscoverable(String sub) throws Exception {

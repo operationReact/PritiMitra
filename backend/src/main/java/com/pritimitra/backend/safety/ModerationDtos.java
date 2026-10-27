@@ -11,7 +11,6 @@ public final class ModerationDtos {
             UUID reportId,
             String targetType,
             UUID targetPublicId,
-            UUID reporterProfilePublicId,
             UUID reportedProfilePublicId,
             String category,
             String details,

@@ -73,6 +73,8 @@ class CommunityService {
                 LEFT JOIN onboarding_profile profile ON profile.user_id=p.author_id
                 LEFT JOIN community_post_reaction r ON r.post_id=p.id
                 WHERE p.group_id=:group AND p.status='PUBLISHED'
+                  AND (p.author_id IS NULL OR EXISTS(SELECT 1 FROM app_user author
+                    WHERE author.id=p.author_id AND author.status='ACTIVE'))
                   AND (p.author_id IS NULL OR NOT EXISTS(SELECT 1 FROM user_block b
                     WHERE (b.blocker_id=:viewer AND b.blocked_id=p.author_id)
                        OR (b.blocker_id=p.author_id AND b.blocked_id=:viewer)))
@@ -130,6 +132,8 @@ class CommunityService {
                 SELECT p.id,p.group_id,p.author_id FROM community_post p
                 JOIN community_group_member gm ON gm.group_id=p.group_id AND gm.user_id=:viewer AND gm.status='ACTIVE'
                 WHERE p.public_id=:id AND p.status='PUBLISHED'
+                  AND (p.author_id IS NULL OR EXISTS(SELECT 1 FROM app_user author
+                    WHERE author.id=p.author_id AND author.status='ACTIVE'))
                   AND (p.author_id IS NULL OR NOT EXISTS(SELECT 1 FROM user_block b
                     WHERE (b.blocker_id=:viewer AND b.blocked_id=p.author_id)
                        OR (b.blocker_id=p.author_id AND b.blocked_id=:viewer)))

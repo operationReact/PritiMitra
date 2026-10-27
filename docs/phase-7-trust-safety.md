@@ -9,9 +9,11 @@ Initial moderation/review tooling is in PR #10. This is a first implementation s
 - Private, cursor-paginated review queue for user_report records with status filters.
 - Server-side moderator authorization based on the verified Cognito cognito:groups claim containing the exact group PritiMitraModerators.
 - Audited decisions: dismiss a report, hide a reported community post, hide a reported profile from discovery, or suspend the reported account.
-- Suspension requires a moderator note. Decisions are serialized by locking the report row and only pending reports can be decided once.
+- Suspension requires a moderator note. It also hides discovery and community content, closes active matches, and cancels scheduled Blind Date pairings and opt-ins. Decisions are serialized by locking the report row and only pending reports can be decided once.
 - Additive Flyway V11 migration for report review metadata and an append-only safety_audit_event table. Audit events do not duplicate report details or message bodies.
 - Web moderation view at /moderation. The page is a presentation layer; backend group authorization remains the security boundary.
+- The report DTO and web queue do not expose the reporter's public profile identifier. Report submission is limited to ten persisted reports per account per rolling hour; an account row lock serializes the limit check and submission.
+- Suspended authors' community posts are hidden and are excluded from group feeds and post interactions.
 - Web BFF uses exact path, HTTP-method, query-parameter, and identifier validation for moderation routes.
 
 ## Moderator access
@@ -35,6 +37,6 @@ Reports cannot be reviewed twice. Review notes are limited to 500 characters. Ex
 
 - User-requested account deletion with Cognito identity deletion and durable privacy-safe audit.
 - Clear controls for withdrawing optional consents while preserving required legal consent semantics.
-- Rate limits/abuse controls for reporting, community posting and messaging, backed by tests.
+- Additional rate limits/abuse controls for community posting and messaging, backed by tests.
 - Staff audit-history review/export and documented incident/escalation procedures.
 - End-to-end authorized Cognito group, browser and mobile checks. No live cloud verification is claimed.

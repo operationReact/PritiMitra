@@ -44,7 +44,6 @@ class ModerationService {
         List<ReportQueueItem> rows = jdbc.sql("""
                 SELECT r.public_id AS report_id, r.target_type, r.category, r.details, r.status, r.created_at,
                        r.decision AS review_decision, r.review_note, r.reviewed_at,
-                       reporter_profile.public_id AS reporter_profile_public_id,
                        target_profile.public_id AS reported_profile_public_id,
                        CASE r.target_type
                          WHEN 'PROFILE' THEN target_profile.public_id
@@ -59,7 +58,6 @@ class ModerationService {
                        END AS target_preview,
                        COALESCE(reviewer_profile.display_name, 'Moderator') AS reviewer_display_name
                 FROM user_report r
-                LEFT JOIN onboarding_profile reporter_profile ON reporter_profile.user_id = r.reporter_id
                 LEFT JOIN onboarding_profile target_profile ON target_profile.user_id = r.reported_user_id
                 LEFT JOIN conversation_message message ON message.id = r.target_message_id
                 LEFT JOIN community_post post ON post.id = r.target_post_id
@@ -79,7 +77,6 @@ class ModerationService {
                         rs.getObject("report_id", UUID.class),
                         rs.getString("target_type"),
                         rs.getObject("target_public_id", UUID.class),
-                        rs.getObject("reporter_profile_public_id", UUID.class),
                         rs.getObject("reported_profile_public_id", UUID.class),
                         rs.getString("category"),
                         rs.getString("details"),
@@ -168,6 +165,35 @@ class ModerationService {
             if (rows == 0) {
                 throw invalid("The reported account is not eligible for suspension");
             }
+            // Suspension immediately closes existing access paths as well as future discovery.
+            jdbc.sql("""
+                    UPDATE onboarding_profile SET discovery_visible = false, updated_at = clock_timestamp()
+                    WHERE user_id = :id
+                    """).param("id", report.reportedUserId()).update();
+            jdbc.sql("""
+                    UPDATE profile_match
+                    SET status = 'UNMATCHED', ended_at = clock_timestamp(), updated_at = clock_timestamp()
+                    WHERE status = 'ACTIVE' AND (user_low_id = :id OR user_high_id = :id)
+                    """).param("id", report.reportedUserId()).update();
+            jdbc.sql("""
+                    UPDATE community_post SET status = 'HIDDEN', updated_at = clock_timestamp()
+                    WHERE author_id = :id AND status = 'PUBLISHED'
+                    """).param("id", report.reportedUserId()).update();
+            jdbc.sql("""
+                    UPDATE blind_date_opt_in SET status = 'WITHDRAWN', pair_id = NULL, updated_at = clock_timestamp()
+                    WHERE pair_id IN (
+                        SELECT id FROM blind_date_pair
+                        WHERE status = 'SCHEDULED' AND (user_low_id = :id OR user_high_id = :id)
+                    ) AND status = 'PAIRED'
+                    """).param("id", report.reportedUserId()).update();
+            jdbc.sql("""
+                    UPDATE blind_date_pair SET status = 'CANCELLED', updated_at = clock_timestamp()
+                    WHERE status = 'SCHEDULED' AND (user_low_id = :id OR user_high_id = :id)
+                    """).param("id", report.reportedUserId()).update();
+            jdbc.sql("""
+                    UPDATE blind_date_opt_in SET status = 'WITHDRAWN', pair_id = NULL, updated_at = clock_timestamp()
+                    WHERE user_id = :id AND status IN ('WAITING', 'PAIRED')
+                    """).param("id", report.reportedUserId()).update();
             eventType = "ACCOUNT_SUSPENDED";
         }
 

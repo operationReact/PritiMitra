@@ -93,7 +93,7 @@ Implemented:
 
 Status: in progress; the initial moderation queue and audited review actions are in PR #10. See docs/phase-7-trust-safety.md.
 
-This slice adds moderator-only report review, content/profile hiding, account suspension with a required reason, and append-only audit events. Remaining Phase 7 scope includes account deletion, consent withdrawal controls, abuse/rate limits and operational audit-history procedures. No AWS resources or DNS records are created.
+This slice adds moderator-only report review, content/profile hiding, account suspension with a required reason, and append-only audit events. Suspension disables discovery, closes active matches, hides published community posts, and cancels scheduled Blind Date pairings and opt-ins. The queue omits reporter public-profile identifiers. Reporting is limited to ten newly persisted reports per account per rolling hour with concurrent submissions serialized by a per-account row lock. Remaining Phase 7 scope includes account deletion, consent withdrawal controls, additional community/messaging abuse controls and operational audit-history procedures. No AWS resources or DNS records are created.
 
 ## Phase 8 — Responsive web product experience
 

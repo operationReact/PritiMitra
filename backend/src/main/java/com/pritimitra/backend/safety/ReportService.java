@@ -31,12 +31,16 @@ public class ReportService {
 	@Transactional
 	public ReportReceipt report(String cognitoSub, ReportRequest request) {
 		UUID viewerId = activeViewerId(cognitoSub);
+		if (request == null) {
+			throw invalid("request is required");
+		}
 		String targetType = targetType(request.targetType());
 		String category = category(request.category());
 		String details = details(request.details());
 		if (request.targetId() == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPORT", "targetId is required");
 		}
+		enforceReportRateLimit(viewerId);
 		return switch (targetType) {
 			case "PROFILE" -> reportProfile(viewerId, request.targetId(), category, details);
 			case "MESSAGE" -> reportMessage(viewerId, request.targetId(), category, details);
@@ -166,6 +170,26 @@ public class ReportService {
 				.query(UUID.class)
 				.single());
 		return new ReportReceipt(reportId, "PENDING");
+	}
+
+	/**
+	 * Serialize report creation per account and cap persisted reports at ten per rolling hour.
+	 * The lock ensures parallel submissions cannot race the count-and-insert sequence.
+	 */
+	private void enforceReportRateLimit(UUID reporterId) {
+		jdbc.sql("SELECT id FROM app_user WHERE id = :reporter FOR UPDATE")
+				.param("reporter", reporterId)
+				.query(UUID.class)
+				.single();
+		long recent = jdbc.sql("""
+				SELECT count(*) FROM user_report
+				WHERE reporter_id = :reporter
+				  AND created_at >= clock_timestamp() - interval '1 hour'
+				""").param("reporter", reporterId).query(Long.class).single();
+		if (recent >= 10) {
+			throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "REPORT_RATE_LIMITED",
+					"You have submitted too many reports. Try again later");
+		}
 	}
 
 	private static String targetType(String raw) {

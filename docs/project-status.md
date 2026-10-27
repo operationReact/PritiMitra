@@ -3,7 +3,7 @@
 ## Current delivery checkpoint (2026-10-27)
 
 - PR #5 Phase 4, PR #6 Phase 5, and PR #8 Phase 6 are merged to main.
-- Phase 7 moderator queue and audit implementation is in PR #10; AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
+- Phase 7 moderator queue and audit implementation is in PR #10. This branch also adds a 10-report/account/rolling-hour limit, removes reporter profile identifiers from moderator responses, and makes suspension close active matches, hide community posts, and cancel scheduled Blind Date pairings. AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
 - No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
 
 ## Phase 1 — Engineering foundation

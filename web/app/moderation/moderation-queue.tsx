@@ -8,7 +8,6 @@ type Report = {
   reportId: string;
   targetType: "PROFILE" | "MESSAGE" | "COMMUNITY_POST";
   targetPublicId: string | null;
-  reporterProfilePublicId: string | null;
   reportedProfilePublicId: string | null;
   category: string;
   details: string | null;
@@ -36,7 +35,6 @@ function parsePage(value: unknown): Page {
     typeof item.category === "string" && typeof item.status === "string" &&
     typeof item.createdAt === "string" &&
     (item.targetPublicId === null || typeof item.targetPublicId === "string") &&
-    (item.reporterProfilePublicId === null || typeof item.reporterProfilePublicId === "string") &&
     (item.reportedProfilePublicId === null || typeof item.reportedProfilePublicId === "string") &&
     (item.details === null || typeof item.details === "string") &&
     (item.targetPreview === null || typeof item.targetPreview === "string") &&
