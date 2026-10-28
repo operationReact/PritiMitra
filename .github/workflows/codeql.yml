@@ -20,6 +20,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  pull-requests: read
 
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.ref }}
