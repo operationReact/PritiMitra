@@ -32,6 +32,8 @@ public class ConversationService {
 
 	static final int MAX_MESSAGE_CHARS = 2000;
 	static final int PREVIEW_CHARS = 80;
+	static final int MAX_MESSAGES_PER_MINUTE = 30;
+	static final int MAX_MESSAGES_PER_HOUR = 300;
 	private static final int DEFAULT_PAGE_SIZE = 20;
 	private static final int MAX_PAGE_SIZE = 50;
 
@@ -212,6 +214,9 @@ public class ConversationService {
 					"This conversation is closed because the match has ended");
 		}
 
+		// Idempotent retries were returned above; only genuinely new messages consume the rate limit.
+		enforceMessageRateLimit(viewerId);
+
 		Optional<MessageSummary> inserted = jdbc.sql("""
 				INSERT INTO conversation_message (conversation_id, sender_id, client_message_id, body, created_at)
 				VALUES (:cid, :sender, :clientId, :body, clock_timestamp())
@@ -236,6 +241,32 @@ public class ConversationService {
 		return findByClientId(locked.conversationId(), viewerId, clientMessageId, body)
 				.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT",
 						"Message could not be confirmed; retry the send"));
+	}
+
+	/**
+	 * Enforces account-wide message burst limits across all conversations. The dedicated advisory lock avoids
+	 * coupling the rate-limit lock order to conversation/match locks. Existing idempotency replays do not count.
+	 */
+	private void enforceMessageRateLimit(UUID viewerId) {
+		String rateKey = viewerId + ":message-send";
+		jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:rateKey AS text), 0))::text")
+				.param("rateKey", rateKey).query(String.class).single();
+		long recentMinute = jdbc.sql("""
+				SELECT count(*) FROM conversation_message
+				WHERE sender_id = :sender AND created_at >= clock_timestamp() - interval '1 minute'
+				""").param("sender", viewerId).query(Long.class).single();
+		if (recentMinute >= MAX_MESSAGES_PER_MINUTE) {
+			throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "MESSAGE_RATE_LIMITED",
+					"You're sending messages too quickly. Please wait before sending more.");
+		}
+		long recentHour = jdbc.sql("""
+				SELECT count(*) FROM conversation_message
+				WHERE sender_id = :sender AND created_at >= clock_timestamp() - interval '1 hour'
+				""").param("sender", viewerId).query(Long.class).single();
+		if (recentHour >= MAX_MESSAGES_PER_HOUR) {
+			throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "MESSAGE_RATE_LIMITED",
+					"You've reached the hourly message limit. Please try again later.");
+		}
 	}
 
 	/** Advances the viewer's read cursor to the given message. The cursor never moves backwards. */
