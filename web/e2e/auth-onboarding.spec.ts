@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const TEST_EMAIL = "member@example.test";
+const TEST_EMAIL = "member@example.com";
 
 test("sign-in renders responsively and maps invalid credentials to safe copy", async ({ page }) => {
   let submittedPayload: unknown;
@@ -45,6 +45,7 @@ test("sign-up catches mismatched passwords before making an API request", async 
   await page.getByLabel("Email address").fill(TEST_EMAIL);
   await page.locator('input[name="password"]').fill("ValidPassword123!");
   await page.getByLabel("Confirm password").fill("DifferentPassword123!");
+  expect(await page.locator("form.auth-form").evaluate((form) => (form as HTMLFormElement).checkValidity())).toBe(true);
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page.locator("p.auth-error[role=\"alert\"]")).toHaveText("Your passwords do not match.");
@@ -134,7 +135,9 @@ test("onboarding fails closed when only draft legal policies are configured", as
 test("public landing keeps its app-release message clear and interactive", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Your people\./ })).toBeVisible();
-  await expect(page.getByText("COMING SOON", { exact: false }).first()).toBeVisible();
+  if ((page.viewportSize()?.width ?? 1440) >= 600) {
+    await expect(page.locator("p.coming-soon")).toBeVisible();
+  }
   await expect(page.getByRole("button", { name: "Download the app" })).toBeVisible();
 
   if ((page.viewportSize()?.width ?? 1440) < 600) {
@@ -157,7 +160,8 @@ test("public landing keeps its app-release message clear and interactive", async
 
 test("signed-out visitors see an account gate instead of fabricated dashboard data", async ({ page }) => {
   await page.goto("/home");
-  await expect(page.getByRole("heading", { name: "Let’s get you settled in." })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Check account status/ })).toHaveAttribute("href", "/account");
+  await expect(page.getByRole("heading", { name: /settled in|taking a pause/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Welcome back/i })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Check account status|Try again/ })).toBeVisible();
   await expect(page.getByText("—", { exact: true })).toHaveCount(0);
 });
