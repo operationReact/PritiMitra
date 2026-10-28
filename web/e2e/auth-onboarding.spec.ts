@@ -129,3 +129,35 @@ test("onboarding fails closed when only draft legal policies are configured", as
   expect(hasHorizontalOverflow).toBe(false);
   expect(consentWriteCount).toBe(0);
 });
+
+
+test("public landing keeps its app-release message clear and interactive", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Your people\./ })).toBeVisible();
+  await expect(page.getByText("COMING SOON", { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download the app" })).toBeVisible();
+
+  if ((page.viewportSize()?.width ?? 1440) < 600) {
+    const menu = page.getByRole("button", { name: "Open navigation menu" });
+    await expect(menu).toBeVisible();
+    await menu.click();
+    await expect(page.getByRole("button", { name: "Close navigation menu" })).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Our mission" })).toBeVisible();
+  } else {
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Our mission" })).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: "Like this profile" }).click();
+  await expect(page.getByRole("status")).toContainText("Every connection starts with consent and a hello.");
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth + 1,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
+test("signed-out visitors see an account gate instead of fabricated dashboard data", async ({ page }) => {
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { name: "Let’s get you settled in." })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Check account status/ })).toHaveAttribute("href", "/account");
+  await expect(page.getByText("—", { exact: true })).toHaveCount(0);
+});
