@@ -106,6 +106,13 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
           "Cache-Control": "no-store",
         },
       });
+
+  // Account deletion must sign the browser out even if token refresh occurred during the request.
+  // Never re-issue rotated session cookies after the upstream has accepted the deletion request.
+  if (method === "DELETE" && upstreamPath === "/api/v1/account" && result.status >= 200 && result.status < 300) {
+    clearSessionCookies(response.cookies as CookieWriter);
+    return response;
+  }
   return result.refreshed ? withSessionCookies(response, result.refreshed) : response;
 }
 
