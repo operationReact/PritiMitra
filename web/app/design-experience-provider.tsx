@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import {
   DEFAULT_DESIGN_EXPERIENCE,
   DESIGN_EXPERIENCE_STORAGE_KEY,
@@ -19,15 +19,14 @@ function applyExperience(experience: DesignExperience) {
   document.documentElement.dataset.experience = experience;
 }
 
-export function DesignExperienceProvider({ children }: { children: ReactNode }) {
-  const [experience, setExperienceState] = useState<DesignExperience>(DEFAULT_DESIGN_EXPERIENCE);
+function readInitialExperience(): DesignExperience {
+  if (typeof window === "undefined") return DEFAULT_DESIGN_EXPERIENCE;
+  const stored = window.localStorage.getItem(DESIGN_EXPERIENCE_STORAGE_KEY);
+  return isDesignExperience(stored) ? stored : DEFAULT_DESIGN_EXPERIENCE;
+}
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(DESIGN_EXPERIENCE_STORAGE_KEY);
-    const next = isDesignExperience(stored) ? stored : DEFAULT_DESIGN_EXPERIENCE;
-    setExperienceState(next);
-    applyExperience(next);
-  }, []);
+export function DesignExperienceProvider({ children }: { children: ReactNode }) {
+  const [experience, setExperienceState] = useState<DesignExperience>(readInitialExperience);
 
   const setExperience = useCallback((next: DesignExperience) => {
     setExperienceState(next);
@@ -37,7 +36,11 @@ export function DesignExperienceProvider({ children }: { children: ReactNode }) 
 
   const value = useMemo(() => ({ experience, setExperience }), [experience, setExperience]);
 
-  return <DesignExperienceContext.Provider value={value}>{children}</DesignExperienceContext.Provider>;
+  return (
+    <DesignExperienceContext.Provider value={value}>
+      <div data-design-experience={experience}>{children}</div>
+    </DesignExperienceContext.Provider>
+  );
 }
 
 export function useDesignExperience() {
