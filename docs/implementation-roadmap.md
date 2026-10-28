@@ -91,11 +91,11 @@ Implemented:
 
 ## Phase 7 — Trust and safety
 
-Status: **initial moderation slice merged to `main` via PR #10; account lifecycle controls are being implemented on a separate review branch; phase remains in progress.** See docs/phase-7-trust-safety.md and docs/phase-7-account-lifecycle-controls.md.
+Status: **moderation and account lifecycle controls merged to `main` via PRs #10 and #16; Phase 7 remains in progress.** See docs/phase-7-trust-safety.md, docs/phase-7-account-lifecycle-controls.md, and docs/phase-7-community-messaging-rate-limits.md.
 
-Implemented on `main`: moderator-only report review, content/profile hiding, account suspension with a required reason, append-only audit events, a ten-new-reports/account/rolling-hour limit with concurrent submissions serialized by a per-account row lock, and suspension effects that close active matches and Blind Date pairings and hide community posts. The review queue omits reporter public-profile identifiers.
+Implemented on `main`: moderator-only report review, content/profile hiding, account suspension with a required reason, append-only safety audit events, a ten-new-reports/account/rolling-hour limit with concurrent submissions serialized by a per-account row lock, suspension effects that close active matches and Blind Date pairings and hide community posts, retryable self-service account deletion, private photo cleanup, a no-reprovision tombstone, append-only privacy-safe lifecycle audit, optional community-nickname consent history, and responsive web account controls.
 
-Current Phase 7 work adds retryable self-service account deletion, private photo cleanup, a no-reprovision tombstone, append-only privacy-safe lifecycle audit, optional community-nickname consent history, and web account controls. This work remains unmerged until backend and web CI pass on the final PR head. Follow-up still required: live Cognito/S3 staging verification, additional community/messaging abuse controls, and operational audit-history procedures. No AWS resources or DNS records are created by this work.
+Current Phase 7 work adds separate per-account rolling-window limits for community posts and messages. The branch uses PostgreSQL transaction-scoped advisory locks and adds a sender/time index for bounded message-rate queries; final backend CI is running. Follow-up still required: live Cognito/S3 staging verification, staff audit-history review/export, incident/escalation procedures, and authorized browser/mobile checks. No AWS resources or DNS records are created by this work.
 
 ## Phase 8 — Responsive web product experience
 
