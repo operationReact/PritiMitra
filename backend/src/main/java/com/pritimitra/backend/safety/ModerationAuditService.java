@@ -141,6 +141,9 @@ class ModerationAuditService {
 
     private static AuditCursor decodeCursor(String raw) {
         if (raw == null || raw.isBlank()) return null;
+        if (raw.length() > 128) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_AUDIT_CURSOR", "Audit pagination cursor is invalid");
+        }
         try {
             String decoded = new String(Base64.getUrlDecoder().decode(raw), StandardCharsets.UTF_8);
             int separator = decoded.indexOf('|');
