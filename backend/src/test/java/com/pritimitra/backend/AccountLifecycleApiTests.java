@@ -87,7 +87,7 @@ class AccountLifecycleApiTests {
                 .param("sub", sub).query(UUID.class).single();
         jdbc.sql("""
                 INSERT INTO consent_record (user_id, consent_type, policy_version, accepted)
-                VALUES (:uid, 'COMMUNITY_NICKNAME', 'community-nickname-v1', true)
+                VALUES (:uid, 'COMMUNITY_NICKNAME', 'community-nick-v1', true)
                 """).param("uid", userId).update();
         jdbc.sql("""
                 INSERT INTO community_post (group_id, author_id, body)
