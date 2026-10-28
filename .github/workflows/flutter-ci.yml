@@ -28,3 +28,23 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - run: flutter build web --release
+      - name: Compile Android release APK
+        run: flutter build apk --release
+      - name: Compile Android Play Store App Bundle
+        run: flutter build appbundle --release
+
+  ios-release-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.8"
+          channel: stable
+          cache: true
+      - name: Resolve Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+      - name: Compile iOS release build without signing
+        working-directory: mobile
+        run: flutter build ios --release --no-codesign
