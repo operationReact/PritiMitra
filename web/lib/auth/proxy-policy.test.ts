@@ -123,14 +123,14 @@ describe("resolveBackendQuery", () => {
   it("validates moderator audit filters and export query parameters", () => {
     const from = "2026-10-01T00:00:00.000Z";
     const to = "2026-10-28T00:00:00.000Z";
-    expect(query("/api/v1/moderation/audit", "eventType=ACCOUNT_SUSPENDED&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to) + "&size=50&cursor=YWJjXzEyMw"))
+    expect(resolveBackendQuery("/api/v1/moderation/audit", "eventType=ACCOUNT_SUSPENDED&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to) + "&size=50&cursor=YWJjXzEyMw"))
       .toBe("eventType=ACCOUNT_SUSPENDED&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to) + "&size=50&cursor=YWJjXzEyMw");
-    expect(query("/api/v1/moderation/audit/export", "eventType=ALL&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to)))
+    expect(resolveBackendQuery("/api/v1/moderation/audit/export", "eventType=ALL&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to)))
       .toBe("eventType=ALL&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to));
-    expect(query("/api/v1/moderation/audit/export", "size=20")).toBeNull();
-    expect(query("/api/v1/moderation/audit", "eventType=BOGUS")).toBeNull();
-    expect(query("/api/v1/moderation/audit", "size=51")).toBeNull();
-    expect(query("/api/v1/moderation/audit", "from=not-a-date")).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/audit/export", "size=20")).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/audit", "eventType=BOGUS")).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/audit", "size=51")).toBeNull();
+    expect(resolveBackendQuery("/api/v1/moderation/audit", "from=not-a-date")).toBeNull();
   });
 
   it("accepts an empty query on every path", () => {
