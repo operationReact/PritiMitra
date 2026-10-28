@@ -107,8 +107,8 @@ Phase 8B adds public sign-in/sign-up, email confirmation/resend, password recove
 
 ## Phase 9 — Release readiness
 
-Before production, close the remaining Phase 7 account deletion/consent/abuse-control tasks; finish browser/device and iOS build acceptance; validate authorized development Cognito and storage flows; approve legal policy versions/URLs; then perform cost/security review and deployment rehearsal. Do not apply Terraform or change DNS without explicit authorization.
+Status: **in progress.** Phase 7 account lifecycle, moderation audit history, and community/messaging rate limits are merged. Phase 8 desktop/mobile browser smoke tests are merged. The first Phase 9 code slice adds CI compilation checks for Android release APK, Android Play Store App Bundle, and iOS release compilation without signing; see `docs/phase-9-release-readiness.md`.
 
+Remaining before production: complete browser/device and accessibility acceptance; compare rendered screens against approved Figma; validate authorized development Cognito and private S3 flows; approve production legal policy versions/HTTPS URLs; verify runtime IAM and deletion-worker telemetry; then perform security/cost review, load/restore testing, and deployment rehearsal. Do not apply Terraform, change DNS, add signing secrets, or deploy without the relevant explicit authorization.
 
-
-Performance/load tests, security review, backups/recovery, observability, deployment automation, store readiness, and cross-platform regression testing.
+Release-readiness work must distinguish CI compilation from signed store artifacts and live cloud behavior. CI green alone does not make the app production-ready.
