@@ -8,4 +8,6 @@
 - Phase 7 community/messaging limits are merged via PR #17: 10 community posts per account/hour, 30 new messages per account/minute and 300/hour, with transactional advisory locks and idempotent message retries preserved.
 - Moderator audit-history review and CSV export are the current Phase 7 implementation item; it remains unmerged until final-head CI passes.
 - Phase 8A responsive web shell and Phase 8B web authentication/onboarding are merged. Visual/browser acceptance and live Cognito flow verification remain outstanding.
-- AWS/Terraform-state bootstrap PR #9 remains a separate draft. No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
+- Phase 9 release readiness is now active. A feature branch adds Android release APK/App Bundle compilation and iOS no-code-sign release compilation to Flutter CI; these are build checks only, not signed artifacts or store submissions.
+- Remaining release gates: authorized staging Cognito/S3 checks, approved Terms/Privacy versions and HTTPS URLs, physical-device acceptance, accessibility and Figma comparison, runtime IAM verification, deletion-worker monitoring, cost/security review, load/restore tests, and deployment rehearsal.
+- AWS/Terraform-state bootstrap PR #9 remains a separate draft. No AWS resources, DNS records or application deployment have been created by this coding work.
