@@ -191,13 +191,13 @@ const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = 
   "/api/v1/moderation/audit": {
     ...PAGED_RULES,
     eventType: /^(?:ALL|REPORT_DISMISSED|COMMUNITY_POST_HIDDEN|PROFILE_HIDDEN|ACCOUNT_SUSPENDED)$/,
-    from: /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$/,
-    to: /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$/,
+    from: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
+    to: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
   },
   "/api/v1/moderation/audit/export": {
     eventType: /^(?:ALL|REPORT_DISMISSED|COMMUNITY_POST_HIDDEN|PROFILE_HIDDEN|ACCOUNT_SUSPENDED)$/,
-    from: /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$/,
-    to: /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$/,
+    from: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
+    to: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
   },
 };
 
