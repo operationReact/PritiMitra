@@ -91,6 +91,33 @@ class MessagingApiTests {
 	}
 
 	@Test
+	void messageSendingEnforcesBurstLimitButAllowsIdempotentRetries() throws Exception {
+		String a = eligibleUser("Ada");
+		String b = eligibleUser("Ben");
+		String conversation = matchedConversation(a, b);
+		UUID lastClientId = UUID.randomUUID();
+		String lastBody = "burst-0";
+		for (int i = 0; i < 30; i++) {
+			lastClientId = UUID.randomUUID();
+			lastBody = "burst-" + i;
+			mvc.perform(post(messagesUrl(conversation)).with(auth(a)).contentType("application/json")
+					.content(sendJson(lastClientId, lastBody)))
+				.andExpect(status().isOk());
+		}
+
+		// Idempotent retry of a persisted message is acknowledged and does not consume a new rate-limit slot.
+		mvc.perform(post(messagesUrl(conversation)).with(auth(a)).contentType("application/json")
+				.content(sendJson(lastClientId, lastBody)))
+			.andExpect(status().isOk());
+
+		mvc.perform(post(messagesUrl(conversation)).with(auth(a)).contentType("application/json")
+				.content(sendJson(UUID.randomUUID(), "burst-over-limit")))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("MESSAGE_RATE_LIMITED"));
+		assertEquals(30, messagesOf(a, conversation).size());
+	}
+
+	@Test
 	void invalidBodiesAndIdentifiersAreRejected() throws Exception {
 		String a = eligibleUser("Ada");
 		String b = eligibleUser("Ben");
