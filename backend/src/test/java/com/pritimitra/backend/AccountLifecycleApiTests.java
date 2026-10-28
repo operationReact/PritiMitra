@@ -1,6 +1,9 @@
 package com.pritimitra.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -126,6 +129,39 @@ class AccountLifecycleApiTests {
         mvc.perform(get("/api/v1/me").with(auth(sub)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_DELETION_PENDING"));
+    }
+
+    @Test
+    void deletionCleanupRetriesAfterPrivatePhotoStorageFailure() throws Exception {
+        String sub = createActiveUser();
+        UUID userId = jdbc.sql("SELECT id FROM app_user WHERE cognito_sub = :sub")
+                .param("sub", sub).query(UUID.class).single();
+        String storageKey = "profiles/" + userId + "/" + UUID.randomUUID();
+        jdbc.sql("""
+                INSERT INTO profile_photo (user_id, storage_key, content_type, size_bytes)
+                VALUES (:uid, :key, 'image/jpeg', 16)
+                """).param("uid", userId).param("key", storageKey).update();
+
+        mvc.perform(delete("/api/v1/account").with(auth(sub)))
+                .andExpect(status().isAccepted());
+
+        doThrow(new IllegalStateException("temporary storage outage"))
+                .doNothing().when(photoStorage).delete(storageKey);
+
+        assertThat(deletions.processPendingDeletions()).isZero();
+        assertThat(jdbc.sql("SELECT status FROM app_user WHERE cognito_sub = :sub")
+                .param("sub", sub).query(String.class).single()).isEqualTo("DELETION_PENDING");
+        assertThat(jdbc.sql("""
+                SELECT status FROM account_deletion_request WHERE subject_digest = :digest
+                """).param("digest", registry.digest(sub)).query(String.class).single()).isEqualTo("PENDING");
+
+        assertThat(deletions.processPendingDeletions()).isEqualTo(1);
+        verify(photoStorage, times(2)).delete(storageKey);
+        assertThat(jdbc.sql("SELECT count(*) FROM app_user WHERE cognito_sub = :sub")
+                .param("sub", sub).query(Long.class).single()).isZero();
+        assertThat(jdbc.sql("""
+                SELECT status FROM account_deletion_request WHERE subject_digest = :digest
+                """).param("digest", registry.digest(sub)).query(String.class).single()).isEqualTo("COMPLETED");
     }
 
     private String createActiveUser() {
