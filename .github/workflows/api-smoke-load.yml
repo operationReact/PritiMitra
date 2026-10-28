@@ -1,6 +1,11 @@
 name: Non-production API smoke load test
 
 on:
+  push:
+    branches: [main]
+    paths: ["perf/k6/**", ".github/workflows/api-smoke-load.yml"]
+  pull_request:
+    paths: ["perf/k6/**", ".github/workflows/api-smoke-load.yml"]
   workflow_dispatch:
     inputs:
       target_env:
@@ -23,7 +28,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  target-validation:
+    name: Test non-production target guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run target-guard unit tests
+        run: node --test perf/k6/target.test.mjs
+
   smoke:
+    if: github.event_name == 'workflow_dispatch'
+    needs: target-validation
     name: Guarded API smoke load test
     runs-on: ubuntu-latest
     timeout-minutes: 5
