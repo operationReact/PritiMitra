@@ -4,6 +4,8 @@ import com.pritimitra.backend.common.ApiException;
 import com.pritimitra.backend.photos.PhotoStorage;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -156,7 +158,7 @@ public class AccountDeletionService {
                     SET status = 'COMPLETED', cognito_sub = NULL, completed_at = :completedAt,
                         attempts = attempts + 1
                     WHERE id = :id AND status = 'PENDING'
-                    """).param("completedAt", Instant.now(clock))
+                    """).param("completedAt", OffsetDateTime.ofInstant(Instant.now(clock), ZoneOffset.UTC))
                     .param("id", locked.id()).update();
             audit(locked.subjectDigest(), "ACCOUNT_DELETION_COMPLETED", null);
         });
@@ -191,7 +193,7 @@ public class AccountDeletionService {
                         INSERT INTO consent_record (user_id, consent_type, policy_version, accepted, recorded_at)
                         VALUES (:uid, 'COMMUNITY_NICKNAME', 'community-nick-v1', :accepted, :recordedAt)
                         """).param("uid", userId).param("accepted", accepted)
-                        .param("recordedAt", Instant.now(clock)).update();
+                        .param("recordedAt", OffsetDateTime.ofInstant(Instant.now(clock), ZoneOffset.UTC)).update();
                 audit(digest, accepted ? "OPTIONAL_CONSENT_GRANTED" : "OPTIONAL_CONSENT_WITHDRAWN",
                         "COMMUNITY_NICKNAME");
             }
