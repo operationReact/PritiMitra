@@ -59,8 +59,8 @@ public class AccountDeletionService {
             return new AccountDeletionResponse(existing.id(), existing.status());
         }
 
-        jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:digest, 9017))")
-                .param("digest", digest).query(Long.class).single();
+        jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:digest, 9017))::text")
+                .param("digest", digest).query(String.class).single();
 
         // Re-check after taking the per-subject lock to make duplicate DELETEs idempotent.
         existing = jdbc.sql("SELECT id, status FROM account_deletion_request WHERE subject_digest = :digest")
@@ -130,7 +130,7 @@ public class AccountDeletionService {
             UUID userId = users.findByCognitoSub(locked.cognitoSub()).map(AppUser::getId).orElse(null);
             if (userId != null) {
                 jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 0))")
-                        .param("uid", userId.toString()).query(Long.class).single();
+                        .param("uid", userId.toString()).query(String.class).single();
 
                 List<String> keys = jdbc.sql("SELECT storage_key FROM profile_photo WHERE user_id = :uid")
                         .param("uid", userId).query(String.class).list();
@@ -178,7 +178,7 @@ public class AccountDeletionService {
                     .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_ELIGIBLE",
                             "Consent settings are available only to active accounts"));
 
-            jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 9018))")
+            jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 9018))::text")
                     .param("uid", userId.toString()).query(Long.class).single();
 
             Boolean latest = jdbc.sql("""
@@ -195,7 +195,6 @@ public class AccountDeletionService {
                 audit(digest, accepted ? "OPTIONAL_CONSENT_GRANTED" : "OPTIONAL_CONSENT_WITHDRAWN",
                         "COMMUNITY_NICKNAME");
             }
-            return new ConsentState(accepted);
         });
     }
 
