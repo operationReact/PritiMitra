@@ -2,6 +2,7 @@ name: Web frontend CI
 
 on:
   push:
+    branches: [main]
     paths: ["web/**", ".github/workflows/web-ci.yml"]
   pull_request:
     paths: ["web/**", ".github/workflows/web-ci.yml"]
