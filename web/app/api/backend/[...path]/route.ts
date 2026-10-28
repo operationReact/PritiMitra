@@ -99,7 +99,7 @@ async function proxy(request: Request, context: RouteContext): Promise<NextRespo
 
   const response = result.bytes
     ? relayImage(result.status, result.bytes, result.contentType)
-    : new NextResponse(result.body, {
+    : new NextResponse(result.status === 204 || result.status === 304 ? null : result.body, {
         status: result.status,
         headers: {
           "Content-Type": result.contentType ?? "application/json",
