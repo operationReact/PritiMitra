@@ -16,12 +16,10 @@ CREATE TABLE account_deletion_request (
     status          varchar(16) NOT NULL DEFAULT 'PENDING',
     requested_at    timestamptz NOT NULL DEFAULT clock_timestamp(),
     completed_at    timestamptz,
-    attempts        integer NOT NULL DEFAULT 0,
     CONSTRAINT account_deletion_status_check CHECK (
         (status = 'PENDING' AND cognito_sub IS NOT NULL AND completed_at IS NULL)
         OR (status = 'COMPLETED' AND cognito_sub IS NULL AND completed_at IS NOT NULL)
-    ),
-    CONSTRAINT account_deletion_attempts_check CHECK (attempts >= 0)
+    )
 );
 CREATE INDEX account_deletion_pending_idx ON account_deletion_request (requested_at, id) WHERE status = 'PENDING';
 
