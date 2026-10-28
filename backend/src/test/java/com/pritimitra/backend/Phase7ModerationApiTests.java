@@ -127,7 +127,8 @@ class Phase7ModerationApiTests {
                 """)
                 .param("actor", "cursor-actor-" + UUID.randomUUID())
                 .param("report", UUID.fromString(reportId))
-                .param("target", UUID.fromString(postId))
+                .param("target", jdbc.sql("SELECT target_public_id FROM user_report WHERE public_id = :report")
+                        .param("report", UUID.fromString(reportId)).query(UUID.class).single())
                 .update();
         String firstPage = body(get("/api/v1/moderation/audit?size=1")
                 .with(moderator("audit-pager-" + UUID.randomUUID())));
