@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { isBinaryBackendPath, isMultipartBackendRoute, resolveBackendPath, resolveBackendQuery } from "./proxy-policy";
 
 describe("resolveBackendPath", () => {
+  it("allows only the exact moderator audit history routes", () => {
+    expect(resolveBackendPath("GET", ["v1", "moderation", "audit"])).toBe("/api/v1/moderation/audit");
+    expect(resolveBackendPath("GET", ["v1", "moderation", "audit", "export"])).toBe("/api/v1/moderation/audit/export");
+    expect(resolveBackendPath("POST", ["v1", "moderation", "audit"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "moderation", "audit", "export", "raw"])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "moderation", "audit", "export"])).toBeNull();
+  });
+
   it("maps allow-listed method and path pairs", () => {
     expect(resolveBackendPath("GET", ["v1", "me"])).toBe("/api/v1/me");
     expect(resolveBackendPath("GET", ["v1", "onboarding"])).toBe("/api/v1/onboarding");
@@ -111,6 +119,19 @@ describe("resolveBackendQuery", () => {
   function query(path: string, raw: string): string | null {
     return resolveBackendQuery(path, new URLSearchParams(raw));
   }
+
+  it("validates moderator audit filters and export query parameters", () => {
+    const from = "2026-10-01T00:00:00.000Z";
+    const to = "2026-10-28T00:00:00.000Z";
+    const auditQuery = "eventType=ACCOUNT_SUSPENDED&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to) + "&size=50&cursor=YWJjXzEyMw";
+    expect(query("/api/v1/moderation/audit", auditQuery)).toBe(auditQuery);
+    const exportQuery = "eventType=ALL&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to);
+    expect(query("/api/v1/moderation/audit/export", exportQuery)).toBe(exportQuery);
+    expect(query("/api/v1/moderation/audit/export", "size=20")).toBeNull();
+    expect(query("/api/v1/moderation/audit", "eventType=BOGUS")).toBeNull();
+    expect(query("/api/v1/moderation/audit", "size=51")).toBeNull();
+    expect(query("/api/v1/moderation/audit", "from=not-a-date")).toBeNull();
+  });
 
   it("accepts an empty query on every path", () => {
     expect(query(DISCOVERY, "")).toBe("");

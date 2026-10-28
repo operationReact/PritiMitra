@@ -1,6 +1,8 @@
 package com.pritimitra.backend;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -49,6 +51,12 @@ class Phase7ModerationApiTests {
         mvc.perform(get("/api/v1/moderation/reports").with(auth(reporter)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MODERATOR_REQUIRED"));
+        mvc.perform(get("/api/v1/moderation/audit").with(auth(reporter)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MODERATOR_REQUIRED"));
+        mvc.perform(get("/api/v1/moderation/audit/export").with(auth(reporter)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MODERATOR_REQUIRED"));
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision").with(auth(reporter))
                 .contentType("application/json").content("{\"decision\":\"DISMISS\"}"))
                 .andExpect(status().isForbidden())
@@ -83,9 +91,10 @@ class Phase7ModerationApiTests {
                 .andExpect(jsonPath("$.items[0].targetPreview").value("reported safety test post"))
                 .andExpect(jsonPath("$.items[0].reporterProfilePublicId").doesNotExist());
 
+        String moderatorSubject = "audit-actor-" + UUID.randomUUID();
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision")
-                .with(moderator("moderator-" + UUID.randomUUID())).contentType("application/json")
-                .content("{\"decision\":\"HIDE_POST\",\"note\":\"Removed after review\"}"))
+                .with(moderator(moderatorSubject)).contentType("application/json")
+                .content("{\"decision\":\"HIDE_POST\",\"note\":\"=SUM(1,1)\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reportId").value(reportId))
                 .andExpect(jsonPath("$.status").value("ACTIONED"))
@@ -96,6 +105,39 @@ class Phase7ModerationApiTests {
         assertEquals(1L, auditEvents(reportId));
         assertEquals("COMMUNITY_POST_HIDDEN", jdbc.sql("SELECT event_type FROM safety_audit_event WHERE report_public_id=:id")
                 .param("id", UUID.fromString(reportId)).query(String.class).single());
+
+        String auditJson = body(get("/api/v1/moderation/audit?eventType=COMMUNITY_POST_HIDDEN&size=20")
+                .with(moderator("audit-reader-" + UUID.randomUUID())));
+        String actorReference = JsonPath.read(auditJson, "$.items[0].actorReference");
+        assertTrue(actorReference.startsWith("sha256:"));
+        assertNotEquals(moderatorSubject, actorReference);
+        assertEquals(reportId, JsonPath.read(auditJson, "$.items[0].reportPublicId"));
+        String csv = mvc.perform(get("/api/v1/moderation/audit/export?eventType=COMMUNITY_POST_HIDDEN")
+                .with(moderator("audit-exporter-" + UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(csv.startsWith("Event ID,Occurred at,Actor reference,Event type,Report ID,Target type,Target ID,Moderator note"));
+        assertTrue(csv.contains("\"'=SUM(1,1)\""), "CSV export must neutralize formula-like notes");
+        assertTrue(!csv.contains(moderatorSubject), "CSV must not expose the raw Cognito subject");
+        assertTrue(!csv.contains("reported safety test post"), "CSV must not export reported content previews");
+
+        jdbc.sql("""
+                INSERT INTO safety_audit_event (actor_sub, event_type, report_public_id, target_type, target_public_id, note)
+                VALUES (:actor, 'REPORT_DISMISSED', :report, 'COMMUNITY_POST', :target, 'pagination fixture')
+                """)
+                .param("actor", "cursor-actor-" + UUID.randomUUID())
+                .param("report", UUID.fromString(reportId))
+                .param("target", UUID.fromString(postId))
+                .update();
+        String firstPage = body(get("/api/v1/moderation/audit?size=1")
+                .with(moderator("audit-pager-" + UUID.randomUUID())));
+        String cursor = JsonPath.read(firstPage, "$.nextCursor");
+        String firstEvent = JsonPath.read(firstPage, "$.items[0].eventId");
+        assertTrue(cursor != null && !cursor.isBlank(), "a second audit event should produce a cursor");
+        String secondPage = body(get("/api/v1/moderation/audit?size=1&cursor=" + cursor)
+                .with(moderator("audit-pager-" + UUID.randomUUID())));
+        String secondEvent = JsonPath.read(secondPage, "$.items[0].eventId");
+        assertNotEquals(firstEvent, secondEvent, "cursor pagination must not repeat an event");
 
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision")
                 .with(moderator("moderator-" + UUID.randomUUID())).contentType("application/json")

@@ -112,6 +112,8 @@ function isPhase6Target(method: BackendMethod, segments: readonly string[]): boo
 function isModerationTarget(method: BackendMethod, segments: readonly string[]): boolean {
   if (segments[0] !== "v1" || segments[1] !== "moderation") return false;
   if (segments.length === 3 && segments[2] === "reports") return method === "GET";
+  if (segments.length === 3 && segments[2] === "audit") return method === "GET";
+  if (segments.length === 4 && segments[2] === "audit" && segments[3] === "export") return method === "GET";
   return segments.length === 5 &&
     segments[2] === "reports" &&
     UUID_PATTERN.test(segments[3] ?? "") &&
@@ -185,6 +187,17 @@ const QUERY_RULES: Readonly<Record<string, Readonly<Record<string, RegExp>>>> = 
   "/api/v1/moderation/reports": {
     ...PAGED_RULES,
     status: /^(?:PENDING|ACTIONED|DISMISSED|ALL)$/,
+  },
+  "/api/v1/moderation/audit": {
+    ...PAGED_RULES,
+    eventType: /^(?:ALL|REPORT_DISMISSED|COMMUNITY_POST_HIDDEN|PROFILE_HIDDEN|ACCOUNT_SUSPENDED)$/,
+    from: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
+    to: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
+  },
+  "/api/v1/moderation/audit/export": {
+    eventType: /^(?:ALL|REPORT_DISMISSED|COMMUNITY_POST_HIDDEN|PROFILE_HIDDEN|ACCOUNT_SUSPENDED)$/,
+    from: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
+    to: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/,
   },
 };
 

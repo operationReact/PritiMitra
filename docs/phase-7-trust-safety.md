@@ -36,7 +36,8 @@ Reports cannot be reviewed twice. Review notes are limited to 500 characters. Ex
 ## Remaining Phase 7 work
 
 - **Merged via PR #16:** self-service account deletion with retryable Cognito/private-photo cleanup, a no-reprovision tombstone, privacy-safe append-only lifecycle audit, and web controls.
-- **Merged via PR #16:** optional community-nickname consent grant/withdrawal history. The related display feature remains disabled until its actual product behavior is shipped.
-- **In progress on a separate review branch:** per-account rolling-window limits for community posts and messages, backed by transactional concurrency locks and regression tests.
-- Staff audit-history review/export and documented incident/escalation procedures.
-- End-to-end authorized Cognito group, browser and mobile checks. Live Cognito/S3 deletion behavior still needs a controlled staging smoke test; no live cloud verification is claimed.
+- **Merged via PR #16:** optional community-nickname consent grant/withdrawal history. The related display feature remains disabled until its product behavior is shipped.
+- **Merged via PR #17:** a 10-post/account/rolling-hour community limit and 30-message/minute plus 300-message/hour account-wide limits, with transaction-scoped concurrency locks and idempotent retry protection.
+- **In progress on a separate review branch:** moderator-only audit-history review and bounded CSV export with privacy-safe actor references and spreadsheet formula-injection protection.
+- Incident/escalation procedures and authorized browser/mobile checks remain outstanding.
+- Live Cognito/S3 deletion behavior still needs a controlled staging smoke test; no live cloud verification is claimed.
