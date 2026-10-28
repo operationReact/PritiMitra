@@ -15,6 +15,8 @@ type AuditEvent = {
 type Page = { items: AuditEvent[]; nextCursor: string | null; from: string; to: string };
 type Filters = { eventType: string; from: string; to: string };
 
+const DEFAULT_FILTERS: Filters = { eventType: "ALL", from: "", to: "" };
+
 const EVENTS = [
   ["ALL", "All events"],
   ["REPORT_DISMISSED", "Report dismissed"],
@@ -56,7 +58,7 @@ function dateStart(value: string): string | null {
 function dateEnd(value: string): string | null {
   if (!value) return null;
   const now = new Date();
-  if (value === now.toISOString().slice(0, 10)) return now.toISOString();
+  if (value === now.toISOString().slice(0, 10)) return null;
   return new Date(value + "T23:59:59.999Z").toISOString();
 }
 function queryFor(filters: Filters, cursor?: string | null): string {
@@ -70,8 +72,8 @@ function queryFor(filters: Filters, cursor?: string | null): string {
 }
 
 export function ModerationAuditHistory() {
-  const [filters, setFilters] = useState<Filters>({ eventType: "ALL", from: "", to: "" });
-  const [applied, setApplied] = useState<Filters>({ eventType: "ALL", from: "", to: "" });
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
@@ -110,9 +112,9 @@ export function ModerationAuditHistory() {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.resolve().then(() => { if (!cancelled) void load(applied); });
+    void Promise.resolve().then(() => { if (!cancelled) void load(DEFAULT_FILTERS); });
     return () => { cancelled = true; };
-  }, [load, applied]);
+  }, [load]);
 
   async function exportCsv() {
     setExporting(true);
