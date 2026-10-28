@@ -62,6 +62,26 @@ class Phase6ApiTests {
     }
 
     @Test
+    void communityPostingEnforcesPerAccountRollingHourLimit() throws Exception {
+        String ada = eligibleUser("Ada");
+        String groupId = JsonPath.read(body(get("/api/v1/community/groups").with(auth(ada))), "$.items[0].publicId");
+        mvc.perform(put("/api/v1/community/groups/" + groupId + "/membership").with(auth(ada)))
+            .andExpect(status().isOk());
+
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(post("/api/v1/community/groups/" + groupId + "/posts").with(auth(ada))
+                    .contentType("application/json")
+                    .content("{\"body\":\"community post " + i + "\"}"))
+                .andExpect(status().isCreated());
+        }
+
+        mvc.perform(post("/api/v1/community/groups/" + groupId + "/posts").with(auth(ada))
+                .contentType("application/json").content("{\"body\":\"one post too many\"}"))
+            .andExpect(status().isTooManyRequests())
+            .andExpect(jsonPath("$.code").value("COMMUNITY_POST_RATE_LIMITED"));
+    }
+
+    @Test
     void blindDatePairsOnlyIndependentOptInsForSameSlotAndCanBeCancelled() throws Exception {
         String ada=eligibleUser("Ada"), ben=eligibleUser("Ben");
         long epoch=((Instant.now().getEpochSecond()/900)+5)*900;

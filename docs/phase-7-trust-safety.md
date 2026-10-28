@@ -35,8 +35,8 @@ Reports cannot be reviewed twice. Review notes are limited to 500 characters. Ex
 
 ## Remaining Phase 7 work
 
-- User-requested account deletion with Cognito identity deletion and durable privacy-safe audit.
-- Clear controls for withdrawing optional consents while preserving required legal consent semantics.
-- Additional rate limits/abuse controls for community posting and messaging, backed by tests.
+- **Merged via PR #16:** self-service account deletion with retryable Cognito/private-photo cleanup, a no-reprovision tombstone, privacy-safe append-only lifecycle audit, and web controls.
+- **Merged via PR #16:** optional community-nickname consent grant/withdrawal history. The related display feature remains disabled until its actual product behavior is shipped.
+- **In progress on a separate review branch:** per-account rolling-window limits for community posts and messages, backed by transactional concurrency locks and regression tests.
 - Staff audit-history review/export and documented incident/escalation procedures.
-- End-to-end authorized Cognito group, browser and mobile checks. No live cloud verification is claimed.
+- End-to-end authorized Cognito group, browser and mobile checks. Live Cognito/S3 deletion behavior still needs a controlled staging smoke test; no live cloud verification is claimed.

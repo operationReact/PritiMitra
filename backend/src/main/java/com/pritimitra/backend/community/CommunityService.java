@@ -94,9 +94,29 @@ class CommunityService {
     PostReceipt createPost(String sub, UUID groupPublicId, CreatePostRequest request) {
         UUID viewer=activeViewerId(sub), group=groupId(groupPublicId); requireMember(viewer,group);
         String body=normalizeBody(request==null?null:request.body());
+        enforcePostRateLimit(viewer);
         return jdbc.sql("INSERT INTO community_post(group_id,author_id,body) VALUES(:group,:viewer,:body) RETURNING public_id,body,created_at")
             .param("group",group).param("viewer",viewer).param("body",body)
             .query((rs,n)->new PostReceipt(rs.getObject("public_id",UUID.class),rs.getString("body"),rs.getObject("created_at",java.time.OffsetDateTime.class))).single();
+    }
+
+    /**
+     * Counts persisted posts, including posts later removed by their author. The per-user transaction lock keeps
+     * concurrent requests from all passing the check before either insert commits.
+     */
+    private void enforcePostRateLimit(UUID viewer) {
+        String rateKey = viewer + ":community-post";
+        jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:rateKey AS text), 0))::text")
+            .param("rateKey", rateKey).query(String.class).single();
+        long recent = jdbc.sql("""
+                SELECT count(*) FROM community_post
+                WHERE author_id = :viewer
+                  AND created_at >= clock_timestamp() - interval '1 hour'
+                """).param("viewer", viewer).query(Long.class).single();
+        if (recent >= 10) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "COMMUNITY_POST_RATE_LIMITED",
+                    "You've reached the community posting limit. Try again later.");
+        }
     }
 
     @Transactional
