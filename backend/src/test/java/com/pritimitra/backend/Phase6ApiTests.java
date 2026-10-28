@@ -87,7 +87,7 @@ class Phase6ApiTests {
     @Test
     void blindDateRejectsBadSlots() throws Exception {
         String ada=eligibleUser("Ada");
-        String bad=OffsetDateTime.now(ZoneOffset.UTC).plusHours(2).withSecond(0).withNano(0).toString();
+        String bad=OffsetDateTime.now(ZoneOffset.UTC).plusHours(2).withMinute(7).withSecond(0).withNano(0).toString();
         mvc.perform(post("/api/v1/blind-dates/opt-ins").with(auth(ada)).contentType("application/json")
                 .content("{\"startsAt\":\""+bad+"\",\"timeZone\":\"UTC\"}"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_BLIND_DATE_SLOT"));
