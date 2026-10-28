@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function AccountControls() {
@@ -8,7 +8,65 @@ export function AccountControls() {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [communityNicknameAccepted, setCommunityNicknameAccepted] = useState<boolean | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentMessage, setConsentMessage] = useState<string | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/backend/v1/account/consents", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("unavailable");
+        const body: unknown = await response.json();
+        if (typeof body !== "object" || body === null || !("communityNicknameAccepted" in body)
+          || typeof (body as { communityNicknameAccepted: unknown }).communityNicknameAccepted !== "boolean") {
+          throw new Error("invalid_response");
+        }
+        if (active) setCommunityNicknameAccepted((body as { communityNicknameAccepted: boolean }).communityNicknameAccepted);
+      })
+      .catch(() => {
+        if (active) {
+          setCommunityNicknameAccepted(false);
+          setConsentMessage("Optional consent settings are temporarily unavailable.");
+        }
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (confirming) cancelRef.current?.focus();
+  }, [confirming]);
+
+  async function updateCommunityNicknameConsent(accepted: boolean) {
+    if (consentBusy) return;
+    setConsentBusy(true);
+    setConsentMessage(null);
+    try {
+      const response = await fetch("/api/backend/v1/account/consents/community-nickname", {
+        method: "PUT",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted }),
+      });
+      if (!response.ok) {
+        setConsentMessage("We couldn't save this preference. Please try again.");
+        return;
+      }
+      const body: unknown = await response.json();
+      if (typeof body !== "object" || body === null || !("communityNicknameAccepted" in body)
+        || typeof (body as { communityNicknameAccepted: unknown }).communityNicknameAccepted !== "boolean") {
+        setConsentMessage("We couldn't confirm this preference was saved.");
+        return;
+      }
+      setCommunityNicknameAccepted((body as { communityNicknameAccepted: boolean }).communityNicknameAccepted);
+      setConsentMessage("Your optional consent preference has been saved.");
+    } catch {
+      setConsentMessage("We couldn't reach PritiMitra. Please check your connection and try again.");
+    } finally {
+      setConsentBusy(false);
+    }
+  }
 
   async function requestDeletion() {
     if (deleting) return;
@@ -49,6 +107,23 @@ export function AccountControls() {
           <h3>Required legal consent</h3>
           <p>Terms of Service and Privacy Notice consent are required while your account is active. To withdraw that required consent, you can request account deletion. Your consent records and personal account data are removed as part of the deletion workflow.</p>
         </div>
+      </div>
+
+      <div className="account-control-row account-consent-row">
+        <div>
+          <h3>Community nickname consent <span className="account-optional-label">OPTIONAL</span></h3>
+          <p>This preference will govern use of a community nickname when that feature is enabled. The feature is not active yet; changing this setting records your choice for future use. It does not affect required legal consent or account access.</p>
+          {consentMessage ? <p className="account-consent-message" role="status">{consentMessage}</p> : null}
+        </div>
+        <label className="account-consent-toggle">
+          <input
+            type="checkbox"
+            checked={communityNicknameAccepted ?? false}
+            disabled={consentBusy || communityNicknameAccepted === null}
+            onChange={(event) => void updateCommunityNicknameConsent(event.target.checked)}
+          />
+          <span>{consentBusy ? "Saving…" : communityNicknameAccepted ? "Allowed" : "Not allowed"}</span>
+        </label>
       </div>
 
       <div className="account-delete-panel">
