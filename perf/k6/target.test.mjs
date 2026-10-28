@@ -16,7 +16,7 @@ test("blocks all PritiMitra production domains and their subdomains", () => {
     "www.pritimitra.org",
     "pritimitra.online",
   ]) {
-    assert.throws(() => validateTarget(`https://${host}`, "staging"), /production PritiMitra hosts are blocked/);
+    assert.throws(() => validateTarget(`https://${host}`, "staging"), /[Pp]roduction PritiMitra hosts are blocked/);
   }
 });
 
