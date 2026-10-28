@@ -31,7 +31,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parsePage(value: unknown): Page {
   if (!isRecord(value) || !Array.isArray(value.items) ||
-      !(value.nextCursor === null || typeof value.nextCursor === "string") ||
+      !(value.nextCursor === null || value.nextCursor === undefined || typeof value.nextCursor === "string") ||
       typeof value.from !== "string" || typeof value.to !== "string") {
     throw new Error("The audit-history response was invalid.");
   }
@@ -39,10 +39,10 @@ function parsePage(value: unknown): Page {
     isRecord(item) && typeof item.eventId === "string" &&
     typeof item.actorReference === "string" && typeof item.eventType === "string" &&
     typeof item.reportPublicId === "string" && typeof item.targetType === "string" &&
-    (item.targetPublicId === null || typeof item.targetPublicId === "string") &&
-    (item.note === null || typeof item.note === "string") &&
+    (item.targetPublicId === null || item.targetPublicId === undefined || typeof item.targetPublicId === "string") &&
+    (item.note === null || item.note === undefined || typeof item.note === "string") &&
     typeof item.createdAt === "string");
-  return { items, nextCursor: value.nextCursor, from: value.from, to: value.to };
+  return { items, nextCursor: typeof value.nextCursor === "string" ? value.nextCursor : null, from: value.from, to: value.to };
 }
 
 function dateLabel(value: string): string {
