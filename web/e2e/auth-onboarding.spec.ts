@@ -28,7 +28,7 @@ test("sign-in renders responsively and maps invalid credentials to safe copy", a
   await page.getByLabel("Password").fill("NotThePassword123!");
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByRole("alert")).toHaveText("The email or password is incorrect.");
+  await expect(page.locator("p.auth-error[role=\"alert\"]")).toHaveText("The email or password is incorrect.");
   expect(submittedPayload).toEqual({ email: TEST_EMAIL, password: "NotThePassword123!" });
   await expect(page).toHaveURL(/\/sign-in$/);
 });
@@ -43,11 +43,11 @@ test("sign-up catches mismatched passwords before making an API request", async 
   await page.goto("/sign-up");
   await expect(page.getByRole("heading", { name: "Make room for connection." })).toBeVisible();
   await page.getByLabel("Email address").fill(TEST_EMAIL);
-  await page.getByLabel("Password").fill("ValidPassword123!");
+  await page.locator('input[name="password"]').fill("ValidPassword123!");
   await page.getByLabel("Confirm password").fill("DifferentPassword123!");
   await page.getByRole("button", { name: "Create account" }).click();
 
-  await expect(page.getByRole("alert")).toHaveText("Your passwords do not match.");
+  await expect(page.locator("p.auth-error[role=\"alert\"]")).toHaveText("Your passwords do not match.");
   expect(requestCount).toBe(0);
 });
 
