@@ -4,7 +4,7 @@
 
 - PR #5 Phase 4, PR #6 Phase 5, and PR #8 Phase 6 are merged to main.
 - Phase 7 initial moderation queue and audit slice merged via PR #10. It includes a 10-new-reports/account/rolling-hour limit, omits reporter profile identifiers from moderation responses, and makes suspension close active matches, hide community posts, and cancel scheduled Blind Date pairings. Remaining Phase 7 work includes account deletion, consent withdrawal controls and further abuse prevention. AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
-- Phase 8 responsive authenticated web shell, Home dashboard and discovery-card redesign are in draft PR #12. CI and visual/browser validation are pending; no production deployment is implied.
+- Phase 8A responsive web shell, Home dashboard and discovery-card redesign are merged via PR #12. Web CI passed; visual/browser acceptance remains outstanding. Phase 8B web authentication/onboarding is being delivered in PR #13.
 - No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
 
 ## Phase 1 — Engineering foundation
@@ -239,7 +239,7 @@ Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main
 - No AWS resources have been provisioned; no Terraform apply, DNS changes or deployment have occurred.
 
 ### Phase 5 — Matching, messaging, notifications and safety
-- **Open PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6), now targeting `main`.
+- **Merged via PR #6:** [Phase 5 implementation](https://github.com/operationReact/PritiMitra/pull/6).
 - Backend CI passed with 102 tests, Web CI passed, and Flutter mobile CI passed on the original head `5537a7570bbbfb6b02173f2aa090b031e5249060`. The branch-base synchronization commit is documentation/architecture-only; check the latest workflows before merging.
 - Browser/device and live AWS/Cognito tests remain open. Moderation review tooling is a later Phase 7 item.
 
@@ -247,7 +247,7 @@ Branch: `feature/phase-5-matching-messaging`; PR #6 has been retargeted to `main
 Green unit tests and CI do not prove deployed AWS behavior, approved production legal configuration, or authenticated end-to-end product readiness. No Terraform apply, DNS mutation, live AWS provisioning or production deployment has been performed.
 
 
-## Phase 6 — Blind Date and community (in progress; draft PR #8)
+## Phase 6 — Blind Date and community (merged via PR #8)
 
 - PR: https://github.com/operationReact/PritiMitra/pull/8
 - Branch: `feature/phase-6-blind-date-community`
@@ -263,11 +263,21 @@ Green unit tests and CI do not prove deployed AWS behavior, approved production 
 
 Backend and web support a Cognito-group-gated report queue, audited dismiss/hide/suspend actions, and an append-only audit log. The backend requires the verified `cognito:groups` claim to include `PritiMitraModerators`; the web URL is not an access control. V11 is additive and does not modify V1–V10. No Cognito group was created, no AWS infrastructure was provisioned, and no live account or DNS operation was performed. Account deletion, optional consent withdrawal, additional rate limits/abuse prevention and fuller audit-history operations remain outstanding. See docs/phase-7-trust-safety.md.
 
-## Phase 8 — Responsive web product experience (in progress; PR #12)
+## Phase 8 — Responsive web product experience (Phase 8A merged via PR #12; Phase 8B in PR #13)
 
 - Added a shared route-aware product shell across existing authenticated product routes. The public landing page remains independent.
 - Added desktop sidebar, tablet icon rail, mobile bottom navigation with safe-area spacing, active route state, consistent brand lockup, privacy-first workspace messaging, and reduced-motion support.
 - Added `/home` as a data-backed overview using the existing profile, conversations, community-group and Blind Date APIs. Counts are omitted as unavailable rather than invented when an API cannot be read.
 - Refined discovery cards with responsive abstract covers, monogram avatars, interest/goal chips and clear like interactions; no fabricated profile photos are used.
-- Added navigation routing unit tests. CI and rendered UI/browser checks remain pending on PR #12.
-- Remaining Phase 8 work: mobile/tablet/desktop review of all product flows, loading/empty/error-state refinement, conversation layout tuning, Figma comparison and completion of the missing web authentication/onboarding flows tracked in Phase 3. No AWS resources, DNS records or production deployment have been created.
+- Phase 8A Web CI passed on its implementation head. Visual/browser checks remain outstanding. PR #13 adds the auth and onboarding journey; its current Web CI run is failing and has not yet been diagnosed from available logs.
+- Remaining Phase 8 work: mobile/tablet/desktop review of all product flows, loading/empty/error-state refinement, conversation layout tuning and approved-Figma comparison. PR #13 adds sign-in, sign-up, confirmation, recovery, and guided onboarding. No AWS resources, DNS records or production deployment have been created.
+
+
+## Current delivery checkpoint — Phase 8B (2026-10-27)
+
+- PR #10: Phase 7 initial moderation/audit slice is merged. Account deletion, consent withdrawal controls, additional community/messaging abuse prevention and operational audit procedures remain open.
+- PR #12: Phase 8A responsive product shell and Home/discovery slice is merged. Responsive browser/device acceptance and approved-Figma comparison remain open.
+- Phase 8B implementation branch `feature/phase-8b-web-auth-onboarding`: adds web sign-in, sign-up, email confirmation/resend, password recovery/reset, account-state redirects, a guided onboarding flow, and a public legal-policy metadata endpoint.
+- Onboarding fails closed until the web runtime has non-draft `PRITIMITRA_TERMS_VERSION` and `PRITIMITRA_PRIVACY_VERSION` values plus valid HTTPS `PRITIMITRA_TERMS_URL` and `PRITIMITRA_PRIVACY_URL` values. These should match the backend-approved configuration. Draft legal text must not be accepted as production approval.
+- Automated checks have not been run inside this editing environment. The implementation must not be treated as validated until GitHub Actions passes on the exact PR head.
+- No AWS resources, DNS records, production data, or deployments were changed. Live Cognito/browser/device tests remain release gates.
