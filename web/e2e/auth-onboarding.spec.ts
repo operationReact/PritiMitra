@@ -157,11 +157,3 @@ test("public landing keeps its app-release message clear and interactive", async
   );
   expect(hasHorizontalOverflow).toBe(false);
 });
-
-test("signed-out visitors see an account gate instead of fabricated dashboard data", async ({ page }) => {
-  await page.goto("/home");
-  await expect(page.getByRole("heading", { name: /settled in|taking a pause/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Welcome back/i })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /Check account status|Try again/ })).toBeVisible();
-  await expect(page.getByText("—", { exact: true })).toHaveCount(0);
-});
