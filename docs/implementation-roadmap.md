@@ -107,7 +107,7 @@ Phase 8B adds public sign-in/sign-up, email confirmation/resend, password recove
 
 ## Phase 9 — Release readiness
 
-Status: **in progress.** Phase 7 account lifecycle, moderation audit history, and community/messaging rate limits are merged. Phase 8 desktop/mobile browser smoke tests are merged. The first Phase 9 code slice adds CI compilation checks for Android release APK, Android Play Store App Bundle, and iOS release compilation without signing; see `docs/phase-9-release-readiness.md`.
+Status: **in progress.** Phase 7 account lifecycle, moderation audit history, and community/messaging rate limits are merged. Phase 8 desktop/mobile browser smoke tests are merged. Phase 9 has merged Android APK/App Bundle and iOS no-signing build gates. The next slice adds CodeQL analysis for Java and TypeScript/JavaScript plus a manually triggered, production-blocked k6 smoke test with automated target-guard tests; see `docs/phase-9-release-readiness.md` and `docs/phase-9-security-performance-gates.md`.
 
 Remaining before production: complete browser/device and accessibility acceptance; compare rendered screens against approved Figma; validate authorized development Cognito and private S3 flows; approve production legal policy versions/HTTPS URLs; verify runtime IAM and deletion-worker telemetry; then perform security/cost review, load/restore testing, and deployment rehearsal. Do not apply Terraform, change DNS, add signing secrets, or deploy without the relevant explicit authorization.
 
