@@ -79,7 +79,10 @@ export function OnboardingFlow() {
     }
   }, [router]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => { void load(); });
+    return () => window.cancelAnimationFrame(frame);
+  }, [load]);
 
   async function send(path: string, method: "PUT" | "POST", payload?: unknown): Promise<boolean> {
     const response = await fetch(path, {
