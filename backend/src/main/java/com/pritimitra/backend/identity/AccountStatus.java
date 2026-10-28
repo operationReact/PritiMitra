@@ -10,5 +10,7 @@ public enum AccountStatus {
 	/** Blocked by an administrator or trust-and-safety process. Protected APIs are unavailable. */
 	SUSPENDED,
 	/** Declared under 18. Terminal. The date of birth is not stored for these accounts. */
-	INELIGIBLE
+	INELIGIBLE,
+	/** User requested deletion; protected product APIs are disabled while cleanup retries. */
+	DELETION_PENDING
 }
