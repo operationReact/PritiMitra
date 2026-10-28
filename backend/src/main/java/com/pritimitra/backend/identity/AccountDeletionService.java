@@ -129,7 +129,7 @@ public class AccountDeletionService {
 
             UUID userId = users.findByCognitoSub(locked.cognitoSub()).map(AppUser::getId).orElse(null);
             if (userId != null) {
-                jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 0))")
+                jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 0))::text")
                         .param("uid", userId.toString()).query(String.class).single();
 
                 List<String> keys = jdbc.sql("SELECT storage_key FROM profile_photo WHERE user_id = :uid")
@@ -171,7 +171,7 @@ public class AccountDeletionService {
 
     public void recordOptionalConsent(String cognitoSub, boolean accepted) {
         String digest = registry.digest(cognitoSub);
-        ConsentState state = transaction.execute(status -> {
+        transaction.executeWithoutResult(status -> {
             UUID userId = users.findByCognitoSub(cognitoSub)
                     .filter(user -> user.getStatus() == AccountStatus.ACTIVE)
                     .map(AppUser::getId)
@@ -179,7 +179,7 @@ public class AccountDeletionService {
                             "Consent settings are available only to active accounts"));
 
             jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:uid AS text), 9018))::text")
-                    .param("uid", userId.toString()).query(Long.class).single();
+                    .param("uid", userId.toString()).query(String.class).single();
 
             Boolean latest = jdbc.sql("""
                     SELECT accepted FROM consent_record
