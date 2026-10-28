@@ -26,10 +26,10 @@ class AccountController {
     @DeleteMapping
     ResponseEntity<AccountDeletionResponse> deleteAccount(@AuthenticationPrincipal Jwt jwt) {
         AccountDeletionResponse response = deletions.requestDeletion(jwt.getSubject());
-        HttpStatus status = "COMPLETED".equals(response.status()) ? HttpStatus.NO_CONTENT
-                : HttpStatus.ACCEPTED;
-        return status == HttpStatus.NO_CONTENT ? ResponseEntity.noContent().build()
-                : ResponseEntity.status(status).body(response);
+        if ("COMPLETED".equals(response.status())) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @GetMapping("/consents")
