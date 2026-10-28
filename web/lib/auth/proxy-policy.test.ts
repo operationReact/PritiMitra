@@ -9,6 +9,18 @@ describe("resolveBackendPath", () => {
     expect(resolveBackendPath("POST", ["v1", "onboarding", "complete"])).toBe("/api/v1/onboarding/complete");
   });
 
+  it("maps only the intended self-service account lifecycle routes", () => {
+    expect(resolveBackendPath("DELETE", ["v1", "account"])).toBe("/api/v1/account");
+    expect(resolveBackendPath("GET", ["v1", "account", "consents"])).toBe("/api/v1/account/consents");
+    expect(resolveBackendPath("PUT", ["v1", "account", "consents", "community-nickname"])).toBe(
+      "/api/v1/account/consents/community-nickname",
+    );
+    expect(resolveBackendPath("POST", ["v1", "account"])).toBeNull();
+    expect(resolveBackendPath("GET", ["v1", "account"])).toBeNull();
+    expect(resolveBackendPath("DELETE", ["v1", "account", "consents"])).toBeNull();
+    expect(resolveBackendPath("PUT", ["v1", "account", "consents", "terms-of-service"])).toBeNull();
+  });
+
   it("denies a path that is not on the list, even under /api/v1", () => {
     expect(resolveBackendPath("GET", ["v1", "admin"])).toBeNull();
     expect(resolveBackendPath("GET", ["v1", "onboarding", "profile"])).toBeNull();
