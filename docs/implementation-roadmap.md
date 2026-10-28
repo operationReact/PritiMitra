@@ -91,9 +91,11 @@ Implemented:
 
 ## Phase 7 — Trust and safety
 
-Status: **initial moderation slice merged to `main` via PR #10; phase remains in progress.** See docs/phase-7-trust-safety.md.
+Status: **initial moderation slice merged to `main` via PR #10; account lifecycle controls are being implemented on a separate review branch; phase remains in progress.** See docs/phase-7-trust-safety.md and docs/phase-7-account-lifecycle-controls.md.
 
-Implemented: moderator-only report review, content/profile hiding, account suspension with a required reason, append-only audit events, a ten-new-reports/account/rolling-hour limit with concurrent submissions serialized by a per-account row lock, and suspension effects that close active matches and Blind Date pairings and hide community posts. The review queue omits reporter public-profile identifiers. Remaining Phase 7 scope includes self-service account deletion, consent withdrawal controls, additional community/messaging abuse controls, and operational audit-history procedures. No AWS resources or DNS records are created.
+Implemented on `main`: moderator-only report review, content/profile hiding, account suspension with a required reason, append-only audit events, a ten-new-reports/account/rolling-hour limit with concurrent submissions serialized by a per-account row lock, and suspension effects that close active matches and Blind Date pairings and hide community posts. The review queue omits reporter public-profile identifiers.
+
+Current Phase 7 work adds retryable self-service account deletion, private photo cleanup, a no-reprovision tombstone, append-only privacy-safe lifecycle audit, optional community-nickname consent history, and web account controls. This work remains unmerged until backend and web CI pass on the final PR head. Follow-up still required: live Cognito/S3 staging verification, additional community/messaging abuse controls, and operational audit-history procedures. No AWS resources or DNS records are created by this work.
 
 ## Phase 8 — Responsive web product experience
 
