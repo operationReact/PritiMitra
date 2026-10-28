@@ -5,6 +5,9 @@ type AllowedRoute = { method: BackendMethod; path: string };
 /** Exact method and path pairs that the browser may reach through /api/backend. Default-deny. */
 const ALLOWED_ROUTES: readonly AllowedRoute[] = [
   { method: "GET", path: "/api/v1/me" },
+  { method: "DELETE", path: "/api/v1/account" },
+  { method: "GET", path: "/api/v1/account/consents" },
+  { method: "PUT", path: "/api/v1/account/consents/community-nickname" },
   { method: "GET", path: "/api/v1/onboarding" },
   { method: "PUT", path: "/api/v1/onboarding/age-verification" },
   { method: "PUT", path: "/api/v1/onboarding/consents" },
