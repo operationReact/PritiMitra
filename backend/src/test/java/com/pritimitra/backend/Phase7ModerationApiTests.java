@@ -121,6 +121,24 @@ class Phase7ModerationApiTests {
         assertTrue(!csv.contains(moderatorSubject), "CSV must not expose the raw Cognito subject");
         assertTrue(!csv.contains("reported safety test post"), "CSV must not export reported content previews");
 
+        jdbc.sql("""
+                INSERT INTO safety_audit_event (actor_sub, event_type, report_public_id, target_type, target_public_id, note)
+                VALUES (:actor, 'REPORT_DISMISSED', :report, 'COMMUNITY_POST', :target, 'pagination fixture')
+                """)
+                .param("actor", "cursor-actor-" + UUID.randomUUID())
+                .param("report", UUID.fromString(reportId))
+                .param("target", UUID.fromString(postId))
+                .update();
+        String firstPage = body(get("/api/v1/moderation/audit?size=1")
+                .with(moderator("audit-pager-" + UUID.randomUUID())));
+        String cursor = JsonPath.read(firstPage, "$.nextCursor");
+        String firstEvent = JsonPath.read(firstPage, "$.items[0].eventId");
+        assertTrue(cursor != null && !cursor.isBlank(), "a second audit event should produce a cursor");
+        String secondPage = body(get("/api/v1/moderation/audit?size=1&cursor=" + cursor)
+                .with(moderator("audit-pager-" + UUID.randomUUID())));
+        String secondEvent = JsonPath.read(secondPage, "$.items[0].eventId");
+        assertNotEquals(firstEvent, secondEvent, "cursor pagination must not repeat an event");
+
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision")
                 .with(moderator("moderator-" + UUID.randomUUID())).contentType("application/json")
                 .content("{\"decision\":\"DISMISS\"}"))
