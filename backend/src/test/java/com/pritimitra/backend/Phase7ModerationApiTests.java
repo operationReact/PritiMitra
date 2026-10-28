@@ -57,6 +57,11 @@ class Phase7ModerationApiTests {
         mvc.perform(get("/api/v1/moderation/audit/export").with(auth(reporter)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MODERATOR_REQUIRED"));
+        mvc.perform(get("/api/v1/moderation/audit")
+                        .param("from", java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).minusDays(100).toString())
+                        .with(moderator("audit-range-" + UUID.randomUUID())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("AUDIT_RANGE_TOO_LARGE"));
         mvc.perform(put("/api/v1/moderation/reports/" + reportId + "/decision").with(auth(reporter))
                 .contentType("application/json").content("{\"decision\":\"DISMISS\"}"))
                 .andExpect(status().isForbidden())
