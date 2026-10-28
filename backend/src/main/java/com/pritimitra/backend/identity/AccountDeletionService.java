@@ -155,8 +155,7 @@ public class AccountDeletionService {
 
             jdbc.sql("""
                     UPDATE account_deletion_request
-                    SET status = 'COMPLETED', cognito_sub = NULL, completed_at = :completedAt,
-                        attempts = attempts + 1
+                    SET status = 'COMPLETED', cognito_sub = NULL, completed_at = :completedAt
                     WHERE id = :id AND status = 'PENDING'
                     """).param("completedAt", OffsetDateTime.ofInstant(Instant.now(clock), ZoneOffset.UTC))
                     .param("id", locked.id()).update();
