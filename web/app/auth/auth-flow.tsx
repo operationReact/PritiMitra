@@ -60,6 +60,7 @@ export function AuthFlow({ mode }: { mode: AuthMode }) {
       setEmail(query.get("email") ?? "");
       if (query.get("confirmed") === "1") setNotice("Your email is confirmed. Sign in to continue.");
       if (query.get("reset") === "1") setNotice("Your password has been reset. Sign in with the new password.");
+      if (query.get("deleted") === "1") setNotice("Your account deletion request has been received. You have been signed out.");
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);

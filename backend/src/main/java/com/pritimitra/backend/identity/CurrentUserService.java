@@ -1,5 +1,7 @@
 package com.pritimitra.backend.identity;
 
+import com.pritimitra.backend.common.ApiException;
+import org.springframework.http.HttpStatus;
 import java.time.Clock;
 import java.time.Instant;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -10,15 +12,23 @@ public class CurrentUserService {
 
 	private final AppUserRepository users;
 	private final Clock clock;
+	private final AccountDeletionRegistry deletions;
 
-	public CurrentUserService(AppUserRepository users, Clock clock) {
+	public CurrentUserService(AppUserRepository users, Clock clock, AccountDeletionRegistry deletions) {
 		this.users = users;
 		this.clock = clock;
+		this.deletions = deletions;
 	}
 
 	/** Returns the account for a verified Cognito subject, creating it on first authenticated use. */
 	public AppUser getOrProvision(String cognitoSub) {
-		return users.findByCognitoSub(cognitoSub).orElseGet(() -> provision(cognitoSub));
+		return users.findByCognitoSub(cognitoSub).orElseGet(() -> {
+			if (deletions.isDeletionRequestedOrCompleted(cognitoSub)) {
+				throw new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_DELETION_PENDING",
+						"This account is being deleted or has been deleted");
+			}
+			return provision(cognitoSub);
+		});
 	}
 
 	public boolean isEligible(String cognitoSub) {

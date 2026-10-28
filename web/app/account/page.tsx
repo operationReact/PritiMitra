@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { callBackend } from "@/lib/auth/backend-proxy";
 import { accountGuardDecision, parseMeResponse } from "@/lib/auth/account";
+import { AccountControls } from "./account-controls";
 
 export const metadata = {
   title: "Account",
@@ -51,7 +52,12 @@ async function AccountStatus() {
 
   switch (accountGuardDecision(parsed.status)) {
     case "continue":
-      return <p>Welcome back{parsed.displayName ? `, ${parsed.displayName}` : ""}.</p>;
+      return (
+        <div className="account-page-content">
+          <p className="account-welcome">Welcome back{parsed.displayName ? `, ${parsed.displayName}` : ""}.</p>
+          <AccountControls />
+        </div>
+      );
     case "verify-email":
       return <p>Please verify your email address to continue.</p>;
     case "onboarding":

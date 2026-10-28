@@ -57,6 +57,8 @@ class PhotoService {
 				.param("uid", userId.toString())
 				.query(String.class)
 				.single();
+		// Re-check after acquiring the upload lock so a request that raced with deletion cannot add a new object.
+		userId = activeUserId(cognitoSub);
 		long existing = jdbc.sql("SELECT count(*) FROM profile_photo WHERE user_id = :uid")
 				.param("uid", userId)
 				.query(Long.class)

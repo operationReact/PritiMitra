@@ -84,4 +84,9 @@ public class AppUser {
 		this.status = AccountStatus.ACTIVE;
 		this.updatedAt = now;
 	}
+
+	public void markDeletionPending(Instant now) {
+		this.status = AccountStatus.DELETION_PENDING;
+		this.updatedAt = now;
+	}
 }

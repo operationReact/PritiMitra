@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -26,6 +27,7 @@ class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 						.requestMatchers("/api/v1/moderation/**").authenticated()
+						.requestMatchers(HttpMethod.DELETE, "/api/v1/account").authenticated()
 						.requestMatchers("/api/v1/me", "/api/v1/onboarding/**").authenticated()
 						.requestMatchers("/api/v1/**").access(eligibleUser)
 						.anyRequest().authenticated())
