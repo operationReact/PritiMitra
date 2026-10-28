@@ -55,10 +55,13 @@ export function AuthFlow({ mode }: { mode: AuthMode }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    setEmail(query.get("email") ?? "");
-    if (query.get("confirmed") === "1") setNotice("Your email is confirmed. Sign in to continue.");
-    if (query.get("reset") === "1") setNotice("Your password has been reset. Sign in with the new password.");
+    const frame = window.requestAnimationFrame(() => {
+      const query = new URLSearchParams(window.location.search);
+      setEmail(query.get("email") ?? "");
+      if (query.get("confirmed") === "1") setNotice("Your email is confirmed. Sign in to continue.");
+      if (query.get("reset") === "1") setNotice("Your password has been reset. Sign in with the new password.");
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
