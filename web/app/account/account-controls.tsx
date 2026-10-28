@@ -27,7 +27,6 @@ export function AccountControls() {
       })
       .catch(() => {
         if (active) {
-          setCommunityNicknameAccepted(false);
           setConsentMessage("Optional consent settings are temporarily unavailable.");
         }
       });
