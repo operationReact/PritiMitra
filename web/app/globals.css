@@ -493,3 +493,12 @@
 .account-delete-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:24px}
 @media(max-width:560px){.account-page-content{padding:0 14px;margin-top:16px}.account-controls{border-radius:22px;padding:22px 18px}.account-delete-panel{align-items:stretch;flex-direction:column}.account-delete-button{width:100%}.account-delete-actions{flex-direction:column-reverse}.account-cancel-button{width:100%}}
 @media(prefers-reduced-motion:reduce){.account-delete-button,.account-cancel-button{transition:none}}
+
+.account-consent-row{display:flex;align-items:center;justify-content:space-between;gap:22px}
+.account-consent-row>div{min-width:0;flex:1}
+.account-optional-label{display:inline-block;margin-left:7px;color:#89759e;font-size:9px;letter-spacing:.12em;vertical-align:middle}
+.account-consent-toggle{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;color:#4a3a5d;font-size:12px;font-weight:750;white-space:nowrap}
+.account-consent-toggle input{width:18px;height:18px;accent-color:#7b4bd2}
+.account-consent-toggle input:disabled{opacity:.5}
+.account-consent-message{margin-top:8px!important;color:#71518a!important;font-size:12px!important}
+@media(max-width:560px){.account-consent-row{align-items:flex-start;flex-direction:column}.account-consent-toggle{white-space:normal}}
