@@ -151,9 +151,20 @@ export function OnboardingFlow() {
     finally { setBusy(false); }
   }
 
-  const maxDob = new Date();
-  maxDob.setFullYear(maxDob.getFullYear() - 18);
-  const maxDobText = [maxDob.getFullYear(), String(maxDob.getMonth() + 1).padStart(2, "0"), String(maxDob.getDate()).padStart(2, "0")].join("-");
+  const [maxDobText, setMaxDobText] = useState("");
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const maxDob = new Date();
+      maxDob.setFullYear(maxDob.getFullYear() - 18);
+      setMaxDobText([
+        maxDob.getFullYear(),
+        String(maxDob.getMonth() + 1).padStart(2, "0"),
+        String(maxDob.getDate()).padStart(2, "0"),
+      ].join("-"));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <main className="onboarding-page">
