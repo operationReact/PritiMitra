@@ -114,7 +114,8 @@ class MessagingApiTests {
 				.content(sendJson(UUID.randomUUID(), "burst-over-limit")))
 			.andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.code").value("MESSAGE_RATE_LIMITED"));
-		assertEquals(30, messagesOf(a, conversation).size());
+		List<String> allMessages = JsonPath.read(body(get(messagesUrl(conversation) + "?size=50").with(auth(a))), "$.items[*].messageId");
+		assertEquals(30, allMessages.size());
 	}
 
 	@Test
