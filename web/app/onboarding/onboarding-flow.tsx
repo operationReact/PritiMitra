@@ -55,7 +55,6 @@ export function OnboardingFlow() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [legalResponse, stateResponse] = await Promise.all([
         fetch("/api/public/legal-config", { cache: "no-store" }),
