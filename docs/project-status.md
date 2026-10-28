@@ -1,11 +1,13 @@
 # Project Status
 
-## Current delivery checkpoint (2026-10-27)
+## Current delivery checkpoint (2026-10-28)
 
 - PR #5 Phase 4, PR #6 Phase 5, and PR #8 Phase 6 are merged to main.
-- Phase 7 initial moderation queue and audit slice merged via PR #10. It includes a 10-new-reports/account/rolling-hour limit, omits reporter profile identifiers from moderation responses, and makes suspension close active matches, hide community posts, and cancel scheduled Blind Date pairings. Remaining Phase 7 work includes account deletion, consent withdrawal controls and further abuse prevention. AWS/Terraform-state bootstrap PR #9 remains a separate draft and is not part of this phase.
-- Phase 8A responsive web shell, Home dashboard and discovery-card redesign are merged via PR #12. Web CI passed; visual/browser acceptance remains outstanding. Phase 8B web authentication/onboarding is being delivered in PR #13.
-- No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
+- Phase 7 moderation and audit tooling is merged via PR #10. It includes a 10-new-reports/account/rolling-hour limit, avoids exposing reporter public-profile identifiers, and makes suspensions close active matches, hide community posts, and cancel scheduled Blind Date pairings.
+- Phase 7 self-service account deletion and consent controls are merged via PR #16. Final-head Backend CI and Web frontend CI passed. The deletion worker remains unverified against live Cognito/S3; this is a staging release gate, not a claim of cloud deployment.
+- The next Phase 7 slice, per-account rolling-window limits for community posts and messages, is under implementation in a separate branch with tests and an index for message-rate queries.
+- Phase 8A responsive web shell and Phase 8B web authentication/onboarding are merged. Visual/browser acceptance and live Cognito flow verification remain outstanding.
+- AWS/Terraform-state bootstrap PR #9 remains a separate draft. No AWS resources, DNS records or application deployment have been created by this Phase 7 coding work.
 
 ## Phase 1 — Engineering foundation
 Status: complete and merged to `main` via PR #1.
