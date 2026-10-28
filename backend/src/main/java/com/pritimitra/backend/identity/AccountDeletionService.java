@@ -189,7 +189,7 @@ public class AccountDeletionService {
             if (latest != accepted) {
                 jdbc.sql("""
                         INSERT INTO consent_record (user_id, consent_type, policy_version, accepted, recorded_at)
-                        VALUES (:uid, 'COMMUNITY_NICKNAME', 'community-nickname-v1', :accepted, :recordedAt)
+                        VALUES (:uid, 'COMMUNITY_NICKNAME', 'community-nick-v1', :accepted, :recordedAt)
                         """).param("uid", userId).param("accepted", accepted)
                         .param("recordedAt", Instant.now(clock)).update();
                 audit(digest, accepted ? "OPTIONAL_CONSENT_GRANTED" : "OPTIONAL_CONSENT_WITHDRAWN",
