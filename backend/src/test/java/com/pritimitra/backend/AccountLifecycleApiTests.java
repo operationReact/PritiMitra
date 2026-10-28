@@ -1,5 +1,6 @@
 package com.pritimitra.backend;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.pritimitra.backend.identity.AccountDeletionRegistry;
 import com.pritimitra.backend.identity.AccountDeletionService;
 import com.pritimitra.backend.identity.CognitoUserAdministration;
 import com.pritimitra.backend.photos.PhotoStorage;
@@ -38,6 +40,9 @@ class AccountLifecycleApiTests {
     @Autowired
     private AccountDeletionService deletions;
 
+    @Autowired
+    private AccountDeletionRegistry registry;
+
     @MockitoBean
     private CognitoUserAdministration cognito;
 
@@ -64,14 +69,15 @@ class AccountLifecycleApiTests {
 
         UUID userId = jdbc.sql("SELECT id FROM app_user WHERE cognito_sub = :sub")
                 .param("sub", sub).query(UUID.class).single();
-        assert jdbc.sql("""
+        assertThat(jdbc.sql("""
                 SELECT count(*) FROM consent_record
                 WHERE user_id = :uid AND consent_type = 'COMMUNITY_NICKNAME'
-                """).param("uid", userId).query(Long.class).single() == 2L;
-        assert jdbc.sql("""
+                """).param("uid", userId).query(Long.class).single()).isEqualTo(2L);
+        assertThat(jdbc.sql("""
                 SELECT count(*) FROM account_lifecycle_audit_event
-                WHERE subject_digest = (SELECT subject_digest FROM account_deletion_request WHERE subject_digest = :digest)
-                """).param("digest", "not-a-deletion-digest").query(Long.class).single() == 0L;
+                WHERE subject_digest = :digest
+                  AND event_type IN ('OPTIONAL_CONSENT_GRANTED', 'OPTIONAL_CONSENT_WITHDRAWN')
+                """).param("digest", registry.digest(sub)).query(Long.class).single()).isEqualTo(2L);
     }
 
     @Test
@@ -93,32 +99,29 @@ class AccountLifecycleApiTests {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
-        assert jdbc.sql("SELECT status FROM app_user WHERE cognito_sub = :sub")
-                .param("sub", sub).query(String.class).single().equals("DELETION_PENDING");
+        assertThat(jdbc.sql("SELECT status FROM app_user WHERE cognito_sub = :sub")
+                .param("sub", sub).query(String.class).single()).isEqualTo("DELETION_PENDING");
 
         deletions.processPendingDeletions();
         verify(cognito).deleteUser(sub);
 
-        assert jdbc.sql("SELECT count(*) FROM app_user WHERE cognito_sub = :sub")
-                .param("sub", sub).query(Long.class).single() == 0L;
-        assert jdbc.sql("SELECT count(*) FROM consent_record WHERE user_id = :uid")
-                .param("uid", userId).query(Long.class).single() == 0L;
-        assert jdbc.sql("""
+        assertThat(jdbc.sql("SELECT count(*) FROM app_user WHERE cognito_sub = :sub")
+                .param("sub", sub).query(Long.class).single()).isZero();
+        assertThat(jdbc.sql("SELECT count(*) FROM consent_record WHERE user_id = :uid")
+                .param("uid", userId).query(Long.class).single()).isZero();
+        assertThat(jdbc.sql("""
                 SELECT count(*) FROM community_post
                 WHERE author_id IS NULL AND body = '[removed by account owner]' AND status = 'REMOVED'
-                """).query(Long.class).single() >= 1L;
-        assert jdbc.sql("""
+                """).query(Long.class).single()).isGreaterThanOrEqualTo(1L);
+        assertThat(jdbc.sql("""
                 SELECT count(*) FROM account_deletion_request
-                WHERE subject_digest IS NOT NULL AND cognito_sub IS NULL AND status = 'COMPLETED'
+                WHERE subject_digest = :digest AND cognito_sub IS NULL AND status = 'COMPLETED'
                   AND completed_at IS NOT NULL
-                """).query(Long.class).single() >= 1L;
-        assert jdbc.sql("""
+                """).param("digest", registry.digest(sub)).query(Long.class).single()).isEqualTo(1L);
+        assertThat(jdbc.sql("""
                 SELECT count(*) FROM account_lifecycle_audit_event
-                WHERE subject_digest = (SELECT subject_digest FROM account_deletion_request
-                                        WHERE subject_digest IS NOT NULL AND cognito_sub IS NULL
-                                        ORDER BY completed_at DESC LIMIT 1)
-                  AND event_type = 'ACCOUNT_DELETION_COMPLETED'
-                """).query(Long.class).single() >= 1L;
+                WHERE subject_digest = :digest AND event_type = 'ACCOUNT_DELETION_COMPLETED'
+                """).param("digest", registry.digest(sub)).query(Long.class).single()).isEqualTo(1L);
 
         mvc.perform(get("/api/v1/me").with(auth(sub)))
                 .andExpect(status().isForbidden())
