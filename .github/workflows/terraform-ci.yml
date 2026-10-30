@@ -1,0 +1,43 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Initialize application Terraform without backend
+        working-directory: infra/terraform
+        run: terraform init -backend=false -input=false
+
+      - name: Validate application Terraform
+        working-directory: infra/terraform
+        run: terraform validate
+
+      - name: Initialize state-bootstrap Terraform
+        working-directory: infra/terraform/bootstrap
+        run: terraform init -backend=false -input=false
+
+      - name: Validate state-bootstrap Terraform
+        working-directory: infra/terraform/bootstrap
+        run: terraform validate
