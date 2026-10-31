@@ -2,7 +2,14 @@
 
 ## Current delivery checkpoint (2026-10-31)
 
-- GitHub `main` is `102ef1ee40836c7a6dd793db3563845e4d2a168b` after merging PR #35.
+- GitHub `main` is `efdb00f759cc613889ec5a326d94f13ca78a229a` after merging PR #41 (P02-W03). Earlier merges: PR #38 `277025761d16ccfc8b47be9567114c668dcca313`, PR #37 `f9d9dd58c53a19c577731cd9885f93326b366a44`, PR #36 `54e449916a0dbcbe495930a5ed06345df904e78d`, PR #35 `102ef1ee40836c7a6dd793db3563845e4d2a168b`.
+- PR #41 (P02-W03 backend design-experience preference: V14 `user_design_experience` table, `GET`/`PUT /api/v1/me/preferences/design-experience`) is merged. Reviewed head `6aad7847a43d98285909f055c607cf333a9364b5` passed backend CI run `41220759296` (`./mvnw -B verify`). Local targeted run `DesignExperiencePreferenceApiTests`: 2/2 passed (Testcontainers PostgreSQL). Ineligible callers are rejected by `EligibleUserAuthorizationManager` with a bare 403 on `/api/v1/**`.
+- PR #38 (P02-W02 mobile persistence via `shared_preferences`) is merged. Reviewed head `eeb751b3959c0786b24ba0e9ec6c6fcdd72811f0` passed Flutter fast CI run `41214923180`.
+- PR #37 (web no-flicker pre-paint) merged from head `c7d27eadde69f2dfcd7103ea008ee1e06106c978` (Web fast CI `41195117161`). PR #36 (status sync) merged from head `0cf3ce8af875659260bb3524dba1ba5a8391d73d`.
+- Mobile P02-W02 local persistence is done. Mobile P02-W01 selector UI is still NOT implemented.
+- Next cursor: P02-W04 (sign-in reconciliation of local vs server preference) and client sync calls to the new endpoint, then P02-W06 (mid-flow switch tests). Browser/Playwright and Figma node comparison remain NOT run.
+- Notion plan update: see the Notion execution log for the P02-W03 entry (written this session).
+- Note: PRs with unsigned heads are blocked by protected-ref rules for the local token. Merges were completed externally.
 - PR #35 (P02-W01 Appearance → Experience selector, web) is merged. Reviewed head `11fde4a5b9f303d5c495d6641be1cf773b49a1f6` passed Web fast CI run `41191579057`. Flutter CI was not triggered (no Dart changes). Local web validation: 150/150 tests, lint clean, production build passed; `tsc --noEmit` shows only the pre-existing `LayoutProps` error. Browser/Playwright and Figma node comparison were NOT run (auth-gated page; connectors unavailable).
 - Mobile P02-W01 selector is NOT implemented (no mobile settings/account screen exists yet). Backend preference sync and sign-in reconciliation (P02-W03/W04) remain open.
 - Next cursor: P02-W02 local persistence for anonymous/offline startup on mobile, plus no-flicker pre-paint handling on web (`layout.tsx` still hard-codes `data-experience="spark"`).
