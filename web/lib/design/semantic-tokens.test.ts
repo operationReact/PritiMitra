@@ -32,7 +32,7 @@ describe("experience semantic tokens", () => {
   });
 
   it("only uses approved shared brand colors for semantic accents", () => {
-    const approved = new Set(Object.values(PRITIMITRA_BRAND));
+    const approved = new Set<string>(Object.values(PRITIMITRA_BRAND));
 
     for (const tokens of Object.values(EXPERIENCE_SEMANTIC_TOKENS)) {
       expect(approved.has(tokens.colors.accent)).toBe(true);
