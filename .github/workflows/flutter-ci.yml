@@ -1,7 +1,8 @@
-name: Flutter mobile CI
+name: Flutter fast CI
 
 on:
   push:
+    branches: [main]
     paths: ["mobile/**", ".github/workflows/flutter-ci.yml"]
   pull_request:
     paths: ["mobile/**", ".github/workflows/flutter-ci.yml"]
@@ -10,9 +11,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flutter-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  flutter:
+  flutter-fast:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     defaults:
       run:
         working-directory: mobile
@@ -23,28 +29,17 @@ jobs:
           flutter-version: "3.47.8"
           channel: stable
           cache: true
-      - run: flutter pub get
-      - run: dart format --output=show lib/core/theme/app_theme.dart lib/features/welcome/presentation/welcome_screen.dart test/widget_test.dart
-      - run: flutter analyze
-      - run: flutter test
-      - run: flutter build web --release
-      - name: Compile Android release APK
-        run: flutter build apk --release
-      - name: Compile Android Play Store App Bundle
-        run: flutter build appbundle --release
-
-  ios-release-build:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.47.8"
-          channel: stable
-          cache: true
-      - name: Resolve Flutter dependencies
-        working-directory: mobile
+      - name: Resolve dependencies
         run: flutter pub get
-      - name: Compile iOS release build without signing
-        working-directory: mobile
-        run: flutter build ios --release --no-codesign
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        run: flutter analyze
+      - name: Unit and widget tests
+        run: flutter test
+      - name: Flutter Web release build
+        run: flutter build web --release
+
+# Android/iOS release compilation is intentionally not part of routine PR CI.
+# Use flutter-native-acceptance.yml for native-sensitive changes, phase boundaries,
+# and release candidates as required by docs/engineering/ci-cost-control-policy.md.
