@@ -1,0 +1,69 @@
+name: Flutter native acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why native acceptance is required (native-sensitive, phase-boundary, release-candidate)"
+        required: true
+        type: choice
+        options:
+          - native-sensitive
+          - phase-boundary
+          - release-candidate
+      ref:
+        description: "Git ref/SHA to validate; leave blank for selected branch"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-native-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.8"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Compile Android release APK
+        run: flutter build apk --release
+      - name: Compile Android Play Store App Bundle
+        run: flutter build appbundle --release
+
+  ios-release:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.8"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Compile iOS release build without signing
+        run: flutter build ios --release --no-codesign
+
+# This workflow is manual by design to avoid paying for native builds on every
+# routine PR. The implementation agent must invoke it for native-sensitive PRs,
+# exact final phase heads and release candidates when required by policy.
