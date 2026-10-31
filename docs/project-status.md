@@ -2,7 +2,7 @@
 
 ## Current delivery checkpoint (2026-10-31)
 
-- GitHub `main` is `264fc7d1bf75cf19c5b6a0e2495bc658f3facefb` after merging PR #29.
+- GitHub `main` is `365773022e7594adfdc1950e34dbfd5d60feef02` after merging PR #9.
 - PR #24 (dual-design specification) and PR #26 (dual-design architecture/implementation inventory) are merged to `main`.
 - PR #29 (`chore: add autonomous Copilot agent and cost-controlled CI policy`) is merged and VERIFIED on final reviewed head `1e0e639ed46e90d3970d353a3366ef77c8175327`.
 - PR #29 exact-head CI evidence: Backend CI `41187496064` success, Web fast CI `41187496041` success, Flutter fast CI `41187496094` success.
@@ -11,8 +11,10 @@
 - Routine Web CI runs tests/lint/build; Playwright/browser acceptance is reserved for auth/routing/material responsive changes, phase boundaries and release candidates.
 - Backend/Flutter feature-branch push duplication is removed; stale workflow runs are cancelled and routine jobs have bounded timeouts.
 - The authoritative execution plan is the Notion page `PritiMitra — Unified Low-Level Implementation Plan`; GitHub `main` remains factual code truth and Figma remains the visual/interaction authority.
-- Open implementation dependencies currently include PR #27 (typed Spark/Essence foundation), PR #28 (stale documentation plan requiring re-baseline), PR #23 (security scanning/guarded smoke tests), and PR #9 (Terraform state bootstrap). These must be reconciled against current `main` before merge; historical base SHAs must not be treated as current evidence.
-- Immediate execution cursor: reconcile PR #27 onto current `main`, validate its exact current head under the new CI policy, fix any remaining brand-token/Figma/implementation defects, merge only when acceptance is green, update Notion, then continue the next P00–P22 work item.
+- PR #27 (typed Spark/Essence foundation) has been rebuilt on the then-current main and corrected for web hydration safety. Its exact head `fc4485068afa1a6f60433317f2da140965ea42bf` passed Web fast CI run `41188990931` and Flutter fast CI run `41188990826`. It remains open and requires reconciliation against the latest `main` before merge.
+- PR #9 (Terraform state bootstrap) is merged. The initial Terraform CI failure was traced to unsupported `override_during` syntax under the pinned Terraform 1.10.5 CLI; the test was corrected without weakening the plan-only mocked-provider intent. Final head `82d813daa446fa588bd21638ab6f79c6d8f02a31` passed Terraform CI run `41189842601` and Backend CI run `41189842411`; merge SHA is `365773022e7594adfdc1950e34dbfd5d60feef02`.
+- Remaining open implementation dependencies include PR #27 (typed Spark/Essence foundation), PR #28 (stale documentation plan requiring re-baseline), and PR #23 (security scanning/guarded smoke tests). Historical base SHAs must not be treated as current evidence.
+- Immediate execution cursor: reconcile PR #27 against latest `main`, obtain fresh exact-head CI if the merge base changes, then merge when required checks and repository rules permit. If blocked, continue only dependency-safe work such as PR #23 security gates and later Terraform/runtime definitions that do not require AWS apply.
 - AWS/Terraform remains code-only until explicit approval. No Terraform apply, paid resource provisioning, DNS mutation, production deployment, signing/store publishing or destructive production data action is authorized.
 
 ## Historical checkpoint (2026-10-28)
@@ -24,4 +26,4 @@
 - Moderator audit-history review and CSV export were the then-current Phase 7 implementation item.
 - Phase 8A responsive web shell and Phase 8B web authentication/onboarding are merged. Visual/browser acceptance and live Cognito flow verification remained outstanding at that checkpoint.
 - The earlier Flutter release-readiness gate compiled Android APK/App Bundle and iOS no-code-sign builds on routine CI; PR #29 superseded that evidence frequency with the cost-controlled policy while retaining native acceptance at required gates.
-- AWS/Terraform-state bootstrap PR #9 remains a separate draft unless superseded/reconciled by later infrastructure work. No AWS resources, DNS records or application deployment were created by those coding changes.
+- Terraform state bootstrap is now merged through PR #9; no AWS resources, DNS records or application deployment were created by that coding work.
