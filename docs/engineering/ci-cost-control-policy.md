@@ -21,7 +21,7 @@ This policy follows a simple rule: cheap focused checks run frequently; expensiv
 | Change type | Routine PR gate | Extra gate | Phase/RC gate |
 | --- | --- | --- | --- |
 | Backend Java/API | Ubuntu Maven verify + config validation | targeted DB/security/integration checks | real integration acceptance as defined by phase |
-| Flutter Dart/widget-only | Ubuntu pub get + format + analyze + tests + web release | none | Android + iOS + web acceptance |
+| Flutter Dart/widget-only | Ubuntu pub get + changed-file format + analyze + tests + web release | none | Android + iOS + web acceptance |
 | Flutter native-sensitive | Fast Flutter gate | manual native Android/iOS acceptance on exact head | full platform acceptance |
 | Next.js ordinary UI/code | Ubuntu npm ci + tests + lint + build | none | browser acceptance |
 | Web auth/routing/responsive shell | Fast web gate | Playwright/browser acceptance | browser acceptance repeated on final phase head |
@@ -38,14 +38,17 @@ Native validation is required when changes include any of:
 - integration/native harness changes
 
 ## Normal Flutter PR
-Required commands:
+Required commands/concepts:
 ```bash
 flutter pub get
-dart format --output=none --set-exit-if-changed lib test
+# Format-check only Dart files changed by the PR/commit range.
+dart format --output=none --set-exit-if-changed <changed-dart-files>
 flutter analyze
 flutter test
 flutter build web --release
 ```
+
+The repository contains historical Dart files that predate the strict formatter gate, so routine governance changes must not reformat unrelated production files just to make CI green. Newly changed Dart files must be formatted, while full-repository formatting can be handled as an explicit cleanup PR if desired.
 
 Target: Ubuntu-only, bounded timeout, stale-run cancellation. Do not compile APK/AAB or use macOS for routine PRs.
 
