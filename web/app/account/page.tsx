@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { callBackend } from "@/lib/auth/backend-proxy";
 import { accountGuardDecision, parseMeResponse } from "@/lib/auth/account";
 import { AccountControls } from "./account-controls";
+import { ExperienceSelector } from "./experience-selector";
 
 export const metadata = {
   title: "Account",
@@ -55,6 +56,7 @@ async function AccountStatus() {
       return (
         <div className="account-page-content">
           <p className="account-welcome">Welcome back{parsed.displayName ? `, ${parsed.displayName}` : ""}.</p>
+          <ExperienceSelector />
           <AccountControls />
         </div>
       );
