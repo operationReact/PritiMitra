@@ -1,0 +1,6 @@
+# Copy to backend.hcl after creating the state bucket. backend.hcl is git-ignored.
+# Replace ACCOUNT_ID with the account ID used by infra/terraform/bootstrap.
+bucket  = "pritimitra-tfstate-ACCOUNT_ID-ap-south-1"
+key     = "pritimitra/dev/terraform.tfstate"
+region  = "ap-south-1"
+encrypt = true

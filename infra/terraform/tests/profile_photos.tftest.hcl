@@ -2,8 +2,7 @@
 
 mock_provider "aws" {
   override_resource {
-    target          = aws_s3_bucket.profile_photos
-    override_during = plan
+    target = aws_s3_bucket.profile_photos
     values = {
       arn    = "arn:aws:s3:::pritimitra-profile-photos-dev-123456789012"
       bucket = "pritimitra-profile-photos-dev-123456789012"
