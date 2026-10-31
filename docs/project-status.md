@@ -2,7 +2,13 @@
 
 ## Current delivery checkpoint (2026-10-31)
 
-- GitHub `main` is `11ccf8bba8274ed5a06425a281d1107b483319d4` after merging PR #33.
+- GitHub `main` is `102ef1ee40836c7a6dd793db3563845e4d2a168b` after merging PR #35.
+- PR #35 (P02-W01 Appearance → Experience selector, web) is merged. Reviewed head `11fde4a5b9f303d5c495d6641be1cf773b49a1f6` passed Web fast CI run `41191579057`. Flutter CI was not triggered (no Dart changes). Local web validation: 150/150 tests, lint clean, production build passed; `tsc --noEmit` shows only the pre-existing `LayoutProps` error. Browser/Playwright and Figma node comparison were NOT run (auth-gated page; connectors unavailable).
+- Mobile P02-W01 selector is NOT implemented (no mobile settings/account screen exists yet). Backend preference sync and sign-in reconciliation (P02-W03/W04) remain open.
+- Next cursor: P02-W02 local persistence for anonymous/offline startup on mobile, plus no-flicker pre-paint handling on web (`layout.tsx` still hard-codes `data-experience="spark"`).
+- Notion plan update is PENDING: the Notion connector was not registered in this session, so the P02-W01 log entry and cursor must be written there once it is available.
+- Note: the `gh pr merge` call reported "Cannot update this protected ref" in this session, yet PR #35 ended up merged; the merge-rule behavior should be verified.
+- GitHub `main` previously was `11ccf8bba8274ed5a06425a281d1107b483319d4` after merging PR #33.
 - PR #24 (dual-design specification) and PR #26 (dual-design architecture/implementation inventory) are merged to `main`.
 - PR #29 (`chore: add autonomous Copilot agent and cost-controlled CI policy`) is merged and VERIFIED on final reviewed head `1e0e639ed46e90d3970d353a3366ef77c8175327`.
 - PR #29 exact-head CI evidence: Backend CI `41187496064` success, Web fast CI `41187496041` success, Flutter fast CI `41187496094` success.
