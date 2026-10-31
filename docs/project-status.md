@@ -2,11 +2,13 @@
 
 ## Current delivery checkpoint (2026-10-31)
 
-- GitHub `main` is `102ef1ee40836c7a6dd793db3563845e4d2a168b` after merging PR #35.
+- GitHub `main` is `277025761d16ccfc8b47be9567114c668dcca313` after merging PR #38.
+- PR #38 (P02-W02 mobile design-experience persistence via `shared_preferences`) is merged. Reviewed head `eeb751b3959c0786b24ba0e9ec6c6fcdd72811f0` passed Flutter fast CI run `41214923180` (lockfile validated by CI; local Flutter 3.47.8 could not reproduce the lock). The merge was completed externally because the head commit is unsigned and the local token cannot merge the protected ref.
+- PR #37 (web no-flicker pre-paint) merged at `f9d9dd58c53a19c577731cd9885f93326b366a44` from head `c7d27eadde69f2dfcd7103ea008ee1e06106c978` (Web fast CI `41195117161`). PR #36 (status sync) merged at `54e449916a0dbcbe495930a5ed06345df904e78d` from head `0cf3ce8af875659260bb3524dba1ba5a8391d73d`.
 - PR #35 (P02-W01 Appearance → Experience selector, web) is merged. Reviewed head `11fde4a5b9f303d5c495d6641be1cf773b49a1f6` passed Web fast CI run `41191579057`. Flutter CI was not triggered (no Dart changes). Local web validation: 150/150 tests, lint clean, production build passed; `tsc --noEmit` shows only the pre-existing `LayoutProps` error. Browser/Playwright and Figma node comparison were NOT run (auth-gated page; connectors unavailable).
-- Mobile P02-W01 selector is NOT implemented (no mobile settings/account screen exists yet). Backend preference sync and sign-in reconciliation (P02-W03/W04) remain open.
-- Next cursor: P02-W02 local persistence for anonymous/offline startup on mobile, plus no-flicker pre-paint handling on web (`layout.tsx` still hard-codes `data-experience="spark"`).
-- Notion plan update is PENDING: the Notion connector was not registered in this session, so the P02-W01 log entry and cursor must be written there once it is available.
+- Mobile P02-W02 local persistence is done: the selected experience is stored with `shared_preferences` and applied at startup. Mobile P02-W01 selector UI is still NOT implemented.
+- Next cursor: P02-W03 (backend preference sync) and P02-W04 (sign-in reconciliation), then P02-W06 (mid-flow switch tests). Browser/Playwright and Figma node comparison remain NOT run.
+- Notion plan update is PENDING: the Notion connector was not registered in the earlier session, so the P02-W02 log entry and cursor must be written there once it is available.
 - Note: the `gh pr merge` call reported "Cannot update this protected ref" in this session, yet PR #35 ended up merged; the merge-rule behavior should be verified.
 - GitHub `main` previously was `11ccf8bba8274ed5a06425a281d1107b483319d4` after merging PR #33.
 - PR #24 (dual-design specification) and PR #26 (dual-design architecture/implementation inventory) are merged to `main`.
