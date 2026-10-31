@@ -135,6 +135,34 @@ After every merged PR and phase milestone update the PritiMitra Notion plan with
 ## 19. PR discipline
 Before merge: correct target branch (`main` unless plan says otherwise), clean logical diff, exact-head required CI green, no invalidating blocker, no prohibited production/cloud action, Figma traceability for visual work. After merge: record merge SHA, update repo status, update Notion, continue immediately.
 
+## 19A. GitHub credential/environment handling
+Before declaring a repository-permission or branch-protection blocker:
+1. Determine whether the current execution environment is Local, Background, Cloud, or another managed agent environment.
+2. Run `gh auth status` when shell access exists.
+3. Run `gh api user --jq .login` when shell access exists.
+4. Run `gh api repos/operationReact/PritiMitra --jq '.permissions'` when shell access exists.
+5. Inspect actual repository rulesets/branch protection when the current credential has permission to do so.
+6. Capture the exact rejected GitHub operation and HTTP/API response before concluding that repository protection is the cause.
+
+If the current environment reports `admin=true` and `push=true`:
+- do not claim a generic permission blocker without exact evidence;
+- do not infer a signed-commit requirement from a 403 alone;
+- verify the actual rule or merge constraint first.
+
+If the current environment is using a restricted Copilot Cloud/GitHub App/temporary agent identity:
+- classify the problem as `AGENT_ENVIRONMENT_PERMISSION_LIMITATION`, not as repository branch protection unless an actual rule has been verified;
+- do not recommend making the repository public as a workaround;
+- do not recommend weakening branch security merely to satisfy a restricted agent token;
+- do not request or create a GPG/SSH signing key unless a verified signed-commit requirement actually exists;
+- continue all dependency-safe implementation, tests, CI analysis, documentation, Notion updates, and preparation of subsequent PR work;
+- leave only the operation that truly requires the unavailable permission pending.
+
+A local user session authenticated as `operationReact` with `ADMIN` repo permission is distinct from a managed Copilot Cloud/session identity. Never assume both environments use the same token or effective permissions.
+
+Repository visibility does not grant merge/admin privileges. Changing private/public visibility is never a valid fix for a merge-permission problem.
+
+When an external trusted integration or authorized local admin merges a verified PR, reconcile latest `main`, record the merge evidence, update Notion/project status, and immediately continue from the next cursor rather than stopping.
+
 ## 20. Human approval gates
 Stop only for paid AWS provisioning/Terraform apply, paid staging/production deployment, DNS changes, production secrets/signing certificates, app-store publishing, destructive production data operations, legal/policy owner decisions, or irreversible migration/cutover. Routine implementation/tests/docs/safe refactoring/PR creation/root-cause CI fixes/status updates do not require repeated approval.
 
