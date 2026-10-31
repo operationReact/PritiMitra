@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pritimitra/app.dart';
+import 'package:pritimitra/core/theme/design_experience_controller.dart';
 import 'package:pritimitra/shared/widgets/brand_header.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<ProviderScope> _appScope() async {
+  SharedPreferences.setMockInitialValues({});
+  final preferences = await SharedPreferences.getInstance();
+  return ProviderScope(
+    overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+    child: const PritiMitraApp(),
+  );
+}
 
 void main() {
   testWidgets('app boots to the rich welcome screen with brand and CTA', (
@@ -10,7 +21,7 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const ProviderScope(child: PritiMitraApp()));
+    await tester.pumpWidget(await tester.runAsync(_appScope) ?? const SizedBox());
     await tester.pumpAndSettle();
 
     expect(find.byType(BrandHeader), findsOneWidget);
@@ -35,7 +46,7 @@ void main() {
   testWidgets('primary CTA opens the sign-up screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const ProviderScope(child: PritiMitraApp()));
+    await tester.pumpWidget(await tester.runAsync(_appScope) ?? const SizedBox());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Get started — it’s free'));
     await tester.pumpAndSettle();
