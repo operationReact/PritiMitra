@@ -2,16 +2,18 @@
 
 ## Current delivery checkpoint (2026-10-31)
 
-- GitHub `main` at the start of the current operationalization work is `f3211976718c4c6621664218d2afc709988ee400`.
+- GitHub `main` is `264fc7d1bf75cf19c5b6a0e2495bc658f3facefb` after merging PR #29.
 - PR #24 (dual-design specification) and PR #26 (dual-design architecture/implementation inventory) are merged to `main`.
-- The authoritative execution plan is the Notion page `PritiMitra — Unified Low-Level Implementation Plan`; GitHub `main` remains the factual code baseline and Figma remains the visual/interaction authority.
-- PR #29 (`chore/copilot-autonomous-ci-policy`) is active. It adds the PritiMitra-specific workspace agent, full/restart/recovery Copilot prompts, CI cost-control policy, exact-head evidence rules, and the continuous Notion update contract.
-- PR #29 also separates routine fast CI from expensive platform acceptance: routine Flutter uses Ubuntu dependency/format/analyze/test/Web-build checks; Android/iOS native acceptance is reserved for native-sensitive changes, exact final phase heads and release candidates. Routine Web uses test/lint/build; Playwright/browser acceptance is reserved for auth/routing/material responsive changes, phase boundaries and release candidates.
-- Backend/Flutter branch-push duplication is removed by restricting push CI to `main`; stale workflow runs are cancelled by concurrency and routine jobs have bounded timeouts.
-- Initial PR #29 Flutter fast CI exposed 23 pre-existing unformatted Dart files. Rather than reformat unrelated production code or rerun unchanged failure, the gate was corrected to enforce formatting only on Dart files changed by the PR/commit range. Fresh exact-head validation is required before merge.
-- Current PR #29 head at this checkpoint: `da6e90bcc1ad076099b7edde1d1375148112c1e5`.
-- AWS/Terraform remains code-only until explicit approval. No Terraform apply, paid resource provisioning, DNS mutation, production deployment, signing/store publishing or destructive production data action is authorized by the current work.
-- After PR #29 is exact-head green and merged, update Notion with final head/CI/merge evidence and continue from the first incomplete P00–P22 implementation work item rather than creating a parallel roadmap.
+- PR #29 (`chore: add autonomous Copilot agent and cost-controlled CI policy`) is merged and VERIFIED on final reviewed head `1e0e639ed46e90d3970d353a3366ef77c8175327`.
+- PR #29 exact-head CI evidence: Backend CI `41187496064` success, Web fast CI `41187496041` success, Flutter fast CI `41187496094` success.
+- PritiMitra now owns `.github/agents/implementation-agent.agent.md`, `docs/engineering/copilot-autonomous-session-prompt.md`, and `docs/engineering/ci-cost-control-policy.md`.
+- Routine Flutter CI is Ubuntu-only for dependency resolution, changed-file formatting, analyzer, unit/widget tests and Flutter Web release build. Android/iOS native acceptance is reserved for native-sensitive changes, exact final phase heads and release candidates.
+- Routine Web CI runs tests/lint/build; Playwright/browser acceptance is reserved for auth/routing/material responsive changes, phase boundaries and release candidates.
+- Backend/Flutter feature-branch push duplication is removed; stale workflow runs are cancelled and routine jobs have bounded timeouts.
+- The authoritative execution plan is the Notion page `PritiMitra — Unified Low-Level Implementation Plan`; GitHub `main` remains factual code truth and Figma remains the visual/interaction authority.
+- Open implementation dependencies currently include PR #27 (typed Spark/Essence foundation), PR #28 (stale documentation plan requiring re-baseline), PR #23 (security scanning/guarded smoke tests), and PR #9 (Terraform state bootstrap). These must be reconciled against current `main` before merge; historical base SHAs must not be treated as current evidence.
+- Immediate execution cursor: reconcile PR #27 onto current `main`, validate its exact current head under the new CI policy, fix any remaining brand-token/Figma/implementation defects, merge only when acceptance is green, update Notion, then continue the next P00–P22 work item.
+- AWS/Terraform remains code-only until explicit approval. No Terraform apply, paid resource provisioning, DNS mutation, production deployment, signing/store publishing or destructive production data action is authorized.
 
 ## Historical checkpoint (2026-10-28)
 
@@ -21,5 +23,5 @@
 - Phase 7 community/messaging limits are merged via PR #17: 10 community posts per account/hour, 30 new messages per account/minute and 300/hour, with transactional advisory locks and idempotent message retries preserved.
 - Moderator audit-history review and CSV export were the then-current Phase 7 implementation item.
 - Phase 8A responsive web shell and Phase 8B web authentication/onboarding are merged. Visual/browser acceptance and live Cognito flow verification remained outstanding at that checkpoint.
-- The earlier Flutter release-readiness gate compiled Android APK/App Bundle and iOS no-code-sign builds on routine CI; PR #29 supersedes that evidence frequency with the cost-controlled policy while retaining native acceptance at required gates.
+- The earlier Flutter release-readiness gate compiled Android APK/App Bundle and iOS no-code-sign builds on routine CI; PR #29 superseded that evidence frequency with the cost-controlled policy while retaining native acceptance at required gates.
 - AWS/Terraform-state bootstrap PR #9 remains a separate draft unless superseded/reconciled by later infrastructure work. No AWS resources, DNS records or application deployment were created by those coding changes.
