@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import {
   DEFAULT_DESIGN_EXPERIENCE,
   DESIGN_EXPERIENCE_STORAGE_KEY,
@@ -14,24 +22,48 @@ type DesignExperienceContextValue = {
 };
 
 const DesignExperienceContext = createContext<DesignExperienceContextValue | null>(null);
+const STORAGE_EVENT = "storage";
+const LOCAL_CHANGE_EVENT = "pritimitra-design-experience";
 
-function applyExperience(experience: DesignExperience) {
-  document.documentElement.dataset.experience = experience;
+function readStoredExperience(): DesignExperience {
+  try {
+    const stored = window.localStorage.getItem(DESIGN_EXPERIENCE_STORAGE_KEY);
+    return isDesignExperience(stored) ? stored : DEFAULT_DESIGN_EXPERIENCE;
+  } catch {
+    return DEFAULT_DESIGN_EXPERIENCE;
+  }
 }
 
-function readInitialExperience(): DesignExperience {
-  if (typeof window === "undefined") return DEFAULT_DESIGN_EXPERIENCE;
-  const stored = window.localStorage.getItem(DESIGN_EXPERIENCE_STORAGE_KEY);
-  return isDesignExperience(stored) ? stored : DEFAULT_DESIGN_EXPERIENCE;
+function subscribe(onChange: () => void) {
+  window.addEventListener(STORAGE_EVENT, onChange);
+  window.addEventListener(LOCAL_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener(STORAGE_EVENT, onChange);
+    window.removeEventListener(LOCAL_CHANGE_EVENT, onChange);
+  };
+}
+
+// The server snapshot is always the default, so hydration matches server HTML;
+// the stored preference is applied on the client without a hydration mismatch.
+function getServerExperience(): DesignExperience {
+  return DEFAULT_DESIGN_EXPERIENCE;
 }
 
 export function DesignExperienceProvider({ children }: { children: ReactNode }) {
-  const [experience, setExperienceState] = useState<DesignExperience>(readInitialExperience);
+  const experience = useSyncExternalStore(subscribe, readStoredExperience, getServerExperience);
+
+  useEffect(() => {
+    document.documentElement.dataset.experience = experience;
+  }, [experience]);
 
   const setExperience = useCallback((next: DesignExperience) => {
-    setExperienceState(next);
-    window.localStorage.setItem(DESIGN_EXPERIENCE_STORAGE_KEY, next);
-    applyExperience(next);
+    try {
+      window.localStorage.setItem(DESIGN_EXPERIENCE_STORAGE_KEY, next);
+    } catch {
+      // Storage unavailable (private mode or quota): keep the in-session choice.
+    }
+    window.dispatchEvent(new Event(LOCAL_CHANGE_EVENT));
+    document.documentElement.dataset.experience = next;
   }, []);
 
   const value = useMemo(() => ({ experience, setExperience }), [experience, setExperience]);
