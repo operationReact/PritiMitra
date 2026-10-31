@@ -2,17 +2,23 @@ name: Backend CI
 
 on:
   push:
-    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md"]
+    branches: [main]
+    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md", "docs/engineering/**"]
   pull_request:
-    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md"]
+    paths: ["backend/**", "infra/**", "AGENTS.md", ".gitignore", ".github/workflows/backend-ci.yml", ".github/copilot-instructions.md", "docs/engineering/**"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: backend-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     defaults:
       run:
         working-directory: backend
@@ -26,4 +32,5 @@ jobs:
       - name: Validate local PostgreSQL Compose configuration
         run: docker compose --env-file ../infra/.env.example -f ../infra/docker-compose.yml config --quiet
       # Testcontainers starts PostgreSQL 17 through the runner's Docker daemon.
-      - run: sh mvnw -B verify
+      - name: Maven verify
+        run: sh mvnw -B verify
